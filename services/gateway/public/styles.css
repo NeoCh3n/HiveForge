@@ -181,6 +181,46 @@ button.primary {
   font-family: "DM Mono", "SFMono-Regular", Menlo, Consolas, monospace;
 }
 
+.events-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 320px;
+  overflow: auto;
+}
+
+.event-line {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+  font-family: "DM Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+}
+
+.event-time {
+  color: var(--muted);
+  min-width: 190px;
+  font-size: 12px;
+}
+
+.event-thread {
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(103, 232, 249, 0.12);
+}
+
+.event-msg {
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
 .mono {
   font-family: "DM Mono", "SFMono-Regular", Menlo, Consolas, monospace;
   white-space: pre-wrap;

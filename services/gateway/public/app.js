@@ -114,7 +114,29 @@ function renderEvents() {
     latestEventEl.textContent = "No events yet.";
     latestEventEl.classList.add("muted");
   }
-  eventsEl.textContent = lines.join("\n");
+
+  eventsEl.innerHTML = "";
+  if (!lines.length) {
+    eventsEl.innerHTML = `<div class="muted">No events yet.</div>`;
+    return;
+  }
+
+  lines.forEach((line) => {
+    // Expected format: "<time> [thread_id] message"
+    const match = line.match(/^(\S+)\s+\[([^\]]+)\]\s+(.*)$/);
+    const time = match ? match[1] : "";
+    const thread = match ? match[2] : "";
+    const msg = match ? match[3] : line;
+
+    const row = document.createElement("div");
+    row.className = "event-line";
+    row.innerHTML = `
+      <span class="event-time">${time}</span>
+      <span class="event-thread">${thread}</span>
+      <span class="event-msg">${msg}</span>
+    `;
+    eventsEl.appendChild(row);
+  });
 }
 
 async function refreshAll() {
