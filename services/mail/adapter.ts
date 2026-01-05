@@ -1,10 +1,18 @@
 import { randomUUID } from "node:crypto";
 import { access, mkdir, readdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { MAIL_ROOT } from "../config.ts";
-import type { Message } from "../../types/protocol.ts";
+import {
+  MAIL_BACKEND,
+  MAIL_ROOT,
+  MCP_BASE_URL,
+  MCP_MODEL,
+  MCP_PROGRAM,
+  MCP_PROJECT_KEY
+} from "../config.ts";
+import type { Message, MessageType } from "../../types/protocol.ts";
 
 const DEFAULT_SUBSCRIBE_INTERVAL_MS = 800;
+const AGENT_MAP_FILE = join(MAIL_ROOT, "agent-map.json");
 
 async function ensureDir(path: string): Promise<void> {
   try {
@@ -26,8 +34,8 @@ async function processingDir(agentId: string): Promise<string> {
   return dir;
 }
 
-export async function send(message: Partial<Message>): Promise<Message> {
-  const msg: Message = {
+function normalizeMessage(message: Partial<Message>): Message {
+  return {
     thread_id: message.thread_id ?? "unknown-thread",
     msg_id: message.msg_id ?? randomUUID(),
     from: message.from ?? "unknown",
@@ -39,6 +47,10 @@ export async function send(message: Partial<Message>): Promise<Message> {
     acceptance_criteria: message.acceptance_criteria ?? [],
     created_at: message.created_at ?? new Date().toISOString()
   };
+}
+
+async function fsSend(message: Partial<Message>): Promise<Message> {
+  const msg = normalizeMessage(message);
 
   const dir = await inboxDir(msg.to);
   const file = join(dir, `${msg.msg_id}.json`);
@@ -46,7 +58,7 @@ export async function send(message: Partial<Message>): Promise<Message> {
   return msg;
 }
 
-export async function poll(agentId: string, limit = 20): Promise<Message[]> {
+async function fsPoll(agentId: string, limit = 20): Promise<Message[]> {
   const inbox = await inboxDir(agentId);
   const processing = await processingDir(agentId);
 
@@ -90,12 +102,12 @@ export async function poll(agentId: string, limit = 20): Promise<Message[]> {
   return messages.slice(0, limit);
 }
 
-export async function ack(agentId: string, msgId: string): Promise<void> {
+async function fsAck(agentId: string, msgId: string): Promise<void> {
   const file = join(MAIL_ROOT, agentId, "processing", `${msgId}.json`);
   await rm(file, { force: true });
 }
 
-export async function latestModified(agentId: string): Promise<number> {
+async function fsLatestModified(agentId: string): Promise<number> {
   const dir = await inboxDir(agentId);
   const files = await readdir(dir);
   let latest = 0;
@@ -106,6 +118,366 @@ export async function latestModified(agentId: string): Promise<number> {
     latest = Math.max(latest, info.mtimeMs);
   }
   return latest;
+}
+
+async function fsListInbox(agentId: string, limit = 50): Promise<Message[]> {
+  const inbox = await inboxDir(agentId);
+  const processing = await processingDir(agentId);
+  const dirs = [inbox, processing];
+  const items: Message[] = [];
+
+  for (const dir of dirs) {
+    let files: string[] = [];
+    try {
+      files = await readdir(dir);
+    } catch {
+      continue;
+    }
+    for (const file of files) {
+      if (!file.endsWith(".json")) continue;
+      const full = join(dir, file);
+      try {
+        const content = await readFile(full, "utf-8");
+        const parsed = JSON.parse(content) as Message;
+        items.push(parsed);
+      } catch (err) {
+        console.error(`[mail][${agentId}] failed to parse ${file}:`, err);
+      }
+    }
+  }
+
+  items.sort((a, b) => (a.created_at || "").localeCompare(b.created_at || ""));
+  return items.slice(0, limit);
+}
+
+type AgentMap = {
+  internalToVendor: Record<string, string>;
+  vendorToInternal: Record<string, string>;
+};
+
+let ensuredProject = false;
+
+async function loadAgentMap(): Promise<AgentMap> {
+  await ensureDir(MAIL_ROOT);
+  try {
+    const raw = await readFile(AGENT_MAP_FILE, "utf-8");
+    const parsed = JSON.parse(raw) as AgentMap;
+    return {
+      internalToVendor: parsed.internalToVendor ?? {},
+      vendorToInternal: parsed.vendorToInternal ?? {}
+    };
+  } catch {
+    return { internalToVendor: {}, vendorToInternal: {} };
+  }
+}
+
+async function saveAgentMap(map: AgentMap): Promise<void> {
+  await ensureDir(MAIL_ROOT);
+  await writeFile(AGENT_MAP_FILE, JSON.stringify(map, null, 2), "utf-8");
+}
+
+type McpToolResult<T> = {
+  content?: Array<{ type?: string; text?: string }>;
+  structuredContent?: T;
+  isError?: boolean;
+};
+
+function parseJsonText(text: string): unknown | undefined {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return undefined;
+  }
+}
+
+function unwrapMcpResult<T>(result: unknown): T {
+  if (!result || typeof result !== "object") return result as T;
+  if (!("content" in result) && !("structuredContent" in result) && !("isError" in result)) {
+    return result as T;
+  }
+
+  const wrapper = result as McpToolResult<unknown>;
+  if (wrapper.isError) {
+    const message =
+      wrapper.content?.find((entry) => typeof entry?.text === "string")?.text ??
+      "mcp_agent_mail tool error";
+    throw new Error(message);
+  }
+
+  if (wrapper.structuredContent !== undefined) {
+    if (
+      wrapper.structuredContent &&
+      typeof wrapper.structuredContent === "object" &&
+      !Array.isArray(wrapper.structuredContent)
+    ) {
+      const keys = Object.keys(wrapper.structuredContent);
+      if (keys.length === 1 && keys[0] === "result") {
+        return (wrapper.structuredContent as { result: unknown }).result as T;
+      }
+    }
+    return wrapper.structuredContent as T;
+  }
+
+  const text = wrapper.content
+    ?.filter((entry) => typeof entry?.text === "string")
+    .map((entry) => entry.text)
+    .join("");
+  if (text) {
+    const parsed = parseJsonText(text);
+    return (parsed ?? text) as T;
+  }
+
+  return result as T;
+}
+
+async function mcpCall<T>(name: string, args: Record<string, any>): Promise<T> {
+  const res = await fetch(MCP_BASE_URL, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: randomUUID(),
+      method: "tools/call",
+      params: { name, arguments: args }
+    })
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`mcp_agent_mail ${name} failed: ${res.status} ${text}`);
+  }
+
+  const data = (await res.json()) as { result?: unknown; error?: { message: string } };
+  if (data.error) throw new Error(data.error.message);
+  if (!data.result) throw new Error(`mcp_agent_mail ${name} returned empty result`);
+  return unwrapMcpResult<T>(data.result);
+}
+
+async function ensureProject(): Promise<void> {
+  if (ensuredProject) return;
+  await mcpCall("ensure_project", { human_key: MCP_PROJECT_KEY });
+  ensuredProject = true;
+}
+
+async function ensureVendorAgent(internalId: string): Promise<string> {
+  const map = await loadAgentMap();
+  const existing = map.internalToVendor[internalId];
+  if (existing) return existing;
+
+  await ensureProject();
+  const result = await mcpCall<{ name: string }>("register_agent", {
+    project_key: MCP_PROJECT_KEY,
+    program: MCP_PROGRAM,
+    model: MCP_MODEL,
+    task_description: internalId
+  });
+
+  map.internalToVendor[internalId] = result.name;
+  map.vendorToInternal[result.name] = internalId;
+  await saveAgentMap(map);
+  return result.name;
+}
+
+async function resolveInternalAgent(vendorName?: string): Promise<string | undefined> {
+  if (!vendorName) return undefined;
+  const map = await loadAgentMap();
+  return map.vendorToInternal[vendorName] ?? vendorName;
+}
+
+function parseTypeFromSubject(subject?: string): string | undefined {
+  if (!subject) return undefined;
+  const match = subject.match(/^\[(\w+)\]/);
+  return match ? match[1] : undefined;
+}
+
+const MESSAGE_TYPES = new Set<MessageType>([
+  "ISSUE",
+  "PLAN_REQUEST",
+  "PLAN",
+  "TASK_REQUEST",
+  "RESULT",
+  "REVIEW_REQUEST",
+  "REVIEW",
+  "MERGE_REQUEST",
+  "MERGE_CONFIRMED",
+  "INFO"
+]);
+
+function normalizeType(value?: string): MessageType {
+  if (value && MESSAGE_TYPES.has(value as MessageType)) return value as MessageType;
+  return "INFO";
+}
+
+function tryParseBody(body?: string): Partial<Message> | undefined {
+  if (!body) return undefined;
+  try {
+    const parsed = JSON.parse(body) as Partial<Message>;
+    if (parsed && typeof parsed === "object") return parsed;
+  } catch {
+    // ignore
+  }
+  return undefined;
+}
+
+function mapPriority(priority?: "low" | "normal" | "high"): string {
+  if (!priority) return "normal";
+  return priority;
+}
+
+function mapImportance(importance?: string): "low" | "normal" | "high" {
+  if (!importance) return "normal";
+  if (importance === "low") return "low";
+  if (importance === "high" || importance === "urgent") return "high";
+  return "normal";
+}
+
+async function mcpSend(message: Partial<Message>): Promise<Message> {
+  const msg = normalizeMessage(message);
+  const fromVendor = await ensureVendorAgent(msg.from);
+  const toVendor = await ensureVendorAgent(msg.to);
+
+  const wireBody = JSON.stringify(msg, null, 2);
+  const subject = `[${msg.type}] ${msg.thread_id}`;
+
+  const result = await mcpCall<{
+    deliveries: Array<{ payload: { id: number; created_ts?: string } }>;
+  }>("send_message", {
+    project_key: MCP_PROJECT_KEY,
+    sender_name: fromVendor,
+    to: [toVendor],
+    subject,
+    body_md: wireBody,
+    importance: mapPriority(msg.priority),
+    thread_id: msg.thread_id
+  });
+
+  const payload = result.deliveries?.[0]?.payload;
+  const created_at = payload?.created_ts ?? msg.created_at;
+  const msg_id = payload?.id ? String(payload.id) : msg.msg_id;
+
+  return { ...msg, msg_id, created_at };
+}
+
+async function mcpPoll(agentId: string, limit = 20): Promise<Message[]> {
+  const vendorName = await ensureVendorAgent(agentId);
+  const items = await mcpCall<unknown>("fetch_inbox", {
+    project_key: MCP_PROJECT_KEY,
+    agent_name: vendorName,
+    limit,
+    include_bodies: true
+  });
+
+  const list = Array.isArray(items) ? items : [];
+  const messages: Message[] = [];
+  for (const item of list) {
+    const parsed = tryParseBody(item.body_md);
+    const from = (await resolveInternalAgent(item.from)) ?? parsed?.from ?? "unknown";
+    const type = normalizeType(parsed?.type ?? parseTypeFromSubject(item.subject));
+    const thread_id =
+      parsed?.thread_id ?? item.thread_id ?? `thread-${String(item.id ?? randomUUID())}`;
+    const created_at = parsed?.created_at ?? item.created_ts ?? new Date().toISOString();
+    const msg_id = String(item.id ?? parsed?.msg_id ?? randomUUID());
+    const payload = parsed?.payload ?? { body: item.body_md ?? "" };
+
+    messages.push({
+      thread_id,
+      msg_id,
+      from,
+      to: agentId,
+      type,
+      priority: parsed?.priority ?? mapImportance(item.importance),
+      context_refs: parsed?.context_refs ?? [],
+      acceptance_criteria: parsed?.acceptance_criteria ?? [],
+      payload,
+      created_at
+    });
+  }
+
+  messages.sort((a, b) => a.created_at.localeCompare(b.created_at));
+  return messages.slice(0, limit);
+}
+
+async function mcpAck(agentId: string, msgId: string): Promise<void> {
+  const vendorName = await ensureVendorAgent(agentId);
+  const message_id = Number(msgId);
+  if (!Number.isFinite(message_id)) {
+    throw new Error(`mcp ack requires numeric message id, got ${msgId}`);
+  }
+  await mcpCall("acknowledge_message", {
+    project_key: MCP_PROJECT_KEY,
+    agent_name: vendorName,
+    message_id
+  });
+}
+
+async function mcpLatestModified(agentId: string): Promise<number> {
+  const messages = await mcpListInbox(agentId, 1);
+  if (!messages.length) return 0;
+  return new Date(messages[0].created_at).getTime();
+}
+
+async function mcpListInbox(agentId: string, limit = 50): Promise<Message[]> {
+  const vendorName = await ensureVendorAgent(agentId);
+  const items = await mcpCall<unknown>("fetch_inbox", {
+    project_key: MCP_PROJECT_KEY,
+    agent_name: vendorName,
+    limit,
+    include_bodies: true
+  });
+
+  const list = Array.isArray(items) ? items : [];
+  const messages: Message[] = [];
+  for (const item of list) {
+    const parsed = tryParseBody(item.body_md);
+    const from = (await resolveInternalAgent(item.from)) ?? parsed?.from ?? "unknown";
+    const type = normalizeType(parsed?.type ?? parseTypeFromSubject(item.subject));
+    const thread_id =
+      parsed?.thread_id ?? item.thread_id ?? `thread-${String(item.id ?? randomUUID())}`;
+    const created_at = parsed?.created_at ?? item.created_ts ?? new Date().toISOString();
+    const msg_id = String(item.id ?? parsed?.msg_id ?? randomUUID());
+    const payload = parsed?.payload ?? { body: item.body_md ?? "" };
+
+    messages.push({
+      thread_id,
+      msg_id,
+      from,
+      to: agentId,
+      type,
+      priority: parsed?.priority ?? mapImportance(item.importance),
+      context_refs: parsed?.context_refs ?? [],
+      acceptance_criteria: parsed?.acceptance_criteria ?? [],
+      payload,
+      created_at
+    });
+  }
+
+  messages.sort((a, b) => a.created_at.localeCompare(b.created_at));
+  return messages.slice(0, limit);
+}
+
+export async function send(message: Partial<Message>): Promise<Message> {
+  if (MAIL_BACKEND === "filesystem") return fsSend(message);
+  return mcpSend(message);
+}
+
+export async function poll(agentId: string, limit = 20): Promise<Message[]> {
+  if (MAIL_BACKEND === "filesystem") return fsPoll(agentId, limit);
+  return mcpPoll(agentId, limit);
+}
+
+export async function ack(agentId: string, msgId: string): Promise<void> {
+  if (MAIL_BACKEND === "filesystem") return fsAck(agentId, msgId);
+  return mcpAck(agentId, msgId);
+}
+
+export async function latestModified(agentId: string): Promise<number> {
+  if (MAIL_BACKEND === "filesystem") return fsLatestModified(agentId);
+  return mcpLatestModified(agentId);
+}
+
+export async function listInbox(agentId: string, limit = 50): Promise<Message[]> {
+  if (MAIL_BACKEND === "filesystem") return fsListInbox(agentId, limit);
+  return mcpListInbox(agentId, limit);
 }
 
 function sleep(ms: number): Promise<void> {

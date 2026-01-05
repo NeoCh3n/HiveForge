@@ -3,7 +3,7 @@
 A unified “multi-agent software factory” scaffold that combines:
 
 - **Flow (vc-inspired):** `services/orchestrator` codifies collaboration as a state machine (Issue → Plan → Execute → Review → Iterate → Done → Memory).
-- **Mail (aligned with mcp_agent_mail):** `services/mail` exposes `send/poll/ack/subscribe`; the MVP uses a local filesystem inbox/outbox.
+- **Mail (aligned with mcp_agent_mail):** `services/mail` exposes `send/poll/ack/subscribe`; default backend is the vendor MCP server (filesystem fallback for tests).
 - **Memory (aligned with beads):** `services/memory` exposes `remember/recall/link/summarize`; the MVP stores JSONL beads locally.
 
 Upstreams are pulled in as submodules under `vendor/` (do not modify them directly):
@@ -15,7 +15,7 @@ Upstreams are pulled in as submodules under `vendor/` (do not modify them direct
 ## Layout
 
 - `services/`
-  - `mail/adapter.ts`: unified Mail API (MVP: filesystem inbox/outbox)
+  - `mail/adapter.ts`: unified Mail API (default: vendor MCP; filesystem fallback for tests)
   - `memory/adapter.ts`: unified Memory API (MVP: JSONL beads)
   - `orchestrator/cli.ts`: state machine + CLI (`issue submit` / `orchestrator run` / `demo run`)
 - `agents/`: four stubs (planner / implementer / reviewer / integrator)
@@ -26,7 +26,8 @@ Upstreams are pulled in as submodules under `vendor/` (do not modify them direct
 
 ## Quickstart (local multi-process demo)
 
-One command to start orchestrator + 4 stub agents and submit a sample issue:
+One command to start orchestrator + 4 stub agents and submit a sample issue.
+If you’re using the default mail backend, start the vendor MCP server first.
 
 ```bash
 npm run demo
@@ -98,7 +99,7 @@ npm run ui
 Tips:
 - Run alongside `npm run demo` (or your own orchestrator + agents) so data flows.
 - Use “New issue” in the UI to send an ISSUE with title/description/acceptance criteria to the orchestrator inbox (no CLI needed).
-- The UI reads everything from `.hiveforge/` (state machine, mailboxes, beads, event log).
+- The UI reads local state/event log from `.hiveforge/` and mail from the configured mail backend.
 
 ## Dev commands
 
@@ -127,11 +128,38 @@ npm run stack
 
 ## Roadmap to real services
 
-Start with filesystem adapters, then swap in real backends without touching orchestrator logic:
+Mail now uses the vendor MCP server by default. Next steps to complete the “real backend” stack:
 
-1) Mail: implement `services/mail/adapter.ts` using `vendor/mcp_agent_mail` HTTP/MCP API while keeping the same interface.
-2) Memory: implement `services/memory/adapter.ts` against `vendor/beads` (CLI or lib) while returning the same bead shape.
-3) Workflow: keep `services/orchestrator` depending only on mail+memory adapters to stay swappable.
+1) Memory: swap `services/memory/adapter.ts` to use `vendor/beads` (CLI or lib) while returning the same bead shape.
+2) Workflow: keep `services/orchestrator` depending only on mail+memory adapters to stay swappable.
+
+## Mail backend (vendor/mcp_agent_mail)
+
+By default, `services/mail` targets the vendor MCP server.
+
+```bash
+# default: http://127.0.0.1:8765/mcp/
+export HIVEFORGE_MCP_BASE_URL="http://127.0.0.1:8765/mcp/"
+export HIVEFORGE_MCP_PROJECT_KEY="$(pwd)"
+```
+
+If you need the local filesystem mailbox for tests/offline:
+
+```bash
+export HIVEFORGE_MAIL_BACKEND=filesystem
+```
+
+## Codex provider (LLM)
+
+Codex-backed agents call the Codex CLI. By default it uses the OpenAI provider.
+
+```bash
+export HIVEFORGE_CODEX_PROVIDER=openai   # default
+export HIVEFORGE_CODEX_MODEL="gpt-5.2"   # optional
+export HIVEFORGE_CODEX_PROFILE="default" # optional
+```
+
+For local OSS models, set `HIVEFORGE_CODEX_PROVIDER=oss` and ensure Ollama is running.
 
 ## Submodule tips
 

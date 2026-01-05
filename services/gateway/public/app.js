@@ -81,8 +81,32 @@ function renderBeads() {
 }
 
 function renderMail() {
-  const agents = ["orchestrator", "planner", "implementer", "reviewer", "integrator"];
+  if (dashboard.mail_ui_url) {
+    if (mailEl.dataset.mailUiUrl === dashboard.mail_ui_url) return;
+    mailEl.dataset.mailUiUrl = dashboard.mail_ui_url;
+    mailEl.innerHTML = "";
+
+    const link = document.createElement("a");
+    link.className = "mail-link";
+    link.href = dashboard.mail_ui_url;
+    link.target = "_blank";
+    link.rel = "noopener";
+    link.textContent = "Open vendor mail UI";
+
+    const frame = document.createElement("iframe");
+    frame.className = "mail-frame";
+    frame.src = dashboard.mail_ui_url;
+    frame.title = "Vendor mail UI";
+
+    mailEl.appendChild(link);
+    mailEl.appendChild(frame);
+    return;
+  }
+
+  mailEl.dataset.mailUiUrl = "";
   mailEl.innerHTML = "";
+
+  const agents = ["orchestrator", "planner", "implementer", "reviewer", "integrator"];
   agents.forEach((agent) => {
     const items = (dashboard.mail && dashboard.mail[agent]) || [];
     const box = document.createElement("div");

@@ -4,14 +4,26 @@ import { readFile, readdir, stat, mkdir } from "node:fs/promises";
 import { join, resolve, extname } from "node:path";
 import { URL } from "node:url";
 import { randomUUID } from "node:crypto";
-import { send as mailSend } from "../mail/adapter.ts";
-import { DATA_ROOT, MAIL_ROOT, MEMORY_ROOT, STATE_DIR, EVENT_LOG } from "../config.ts";
+import { listInbox, send as mailSend } from "../mail/adapter.ts";
+import { DATA_ROOT, EVENT_LOG, MAIL_BACKEND, MAIL_ROOT, MCP_BASE_URL, MEMORY_ROOT, STATE_DIR } from "../config.ts";
 
 const PORT = parseInt(process.env.PORT ?? "8787", 10);
 const MAIL_DIR = MAIL_ROOT;
 const MEMORY_FILE = join(MEMORY_ROOT, "beads.jsonl");
 const EVENTS_FILE = EVENT_LOG;
 const PUBLIC_DIR = resolve("services/gateway/public");
+const MAIL_UI_URL = MAIL_BACKEND === "mcp" ? deriveMailUiUrl(MCP_BASE_URL) : null;
+
+function deriveMailUiUrl(baseUrl: string): string {
+  try {
+    const url = new URL(baseUrl);
+    const replaced = url.pathname.replace(/\/mcp\/?$/, "/mail");
+    url.pathname = replaced === url.pathname ? "/mail" : replaced;
+    return url.toString();
+  } catch {
+    return "http://127.0.0.1:8765/mail";
+  }
+}
 
 async function safeJson(path: string) {
   try {
@@ -46,42 +58,21 @@ async function listStates() {
   }
 }
 
+const AGENT_IDS = ["orchestrator", "planner", "implementer", "reviewer", "integrator", "user", "ui"];
+
 async function collectAllMail() {
-  try {
-    const agents = await readdir(MAIL_DIR);
-    const mailbox = {};
-    for (const agent of agents) {
-      mailbox[agent] = await listMessages(agent);
-    }
-    return mailbox;
-  } catch {
-    return {};
+  const mailbox: Record<string, any[]> = {};
+  for (const agent of AGENT_IDS) {
+    mailbox[agent] = await listMessages(agent);
   }
+  return mailbox;
 }
 
 async function listMessages(agent: string) {
   try {
-    const inbox = join(MAIL_DIR, agent, "inbox");
-    const processing = join(MAIL_DIR, agent, "processing");
-    const dirs = [inbox, processing];
-    const items = [];
-    for (const dir of dirs) {
-      let files: string[] = [];
-      try {
-        files = await readdir(dir);
-      } catch {
-        continue;
-      }
-      for (const file of files) {
-        if (!file.endsWith(".json")) continue;
-        const full = join(dir, file);
-        const payload = await safeJson(full);
-        if (payload) items.push(payload);
-      }
-    }
-    items.sort((a, b) => (a.created_at || "").localeCompare(b.created_at || ""));
-    return items;
-  } catch {
+    return await listInbox(agent, 50);
+  } catch (err) {
+    console.error(`[gateway] failed to list inbox for ${agent}:`, err);
     return [];
   }
 }
@@ -177,10 +168,10 @@ async function start() {
       const [states, beads, mail, events] = await Promise.all([
         listStates(),
         listBeads(undefined, 100),
-        collectAllMail(),
+        MAIL_BACKEND === "mcp" ? Promise.resolve({}) : collectAllMail(),
         readEvents(300)
       ]);
-      json(res, 200, { data: { states, beads, mail, events } });
+      json(res, 200, { data: { states, beads, mail, events, mail_ui_url: MAIL_UI_URL } });
       return;
     }
 

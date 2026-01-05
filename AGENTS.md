@@ -113,7 +113,26 @@ Source of truth: `schemas/workflow.schema.json`.
 - Default runtime data lives under `.hiveforge/`.
 - Override with `HIVEFORGE_DATA_ROOT` (used by mail, memory, orchestrator, and UI).
 
-### 7.2 Commands
+### 7.2 Mail Backend (Vendor MCP)
+
+- Mail is expected to use `vendor/mcp_agent_mail` via the `services/mail` adapter.
+- Configure with env:
+  - `HIVEFORGE_MAIL_BACKEND=mcp` (default)
+  - `HIVEFORGE_MCP_BASE_URL` (default `http://127.0.0.1:8765/mcp/`)
+  - `HIVEFORGE_MCP_PROJECT_KEY` (default: repo path)
+  - `HIVEFORGE_MCP_PROGRAM` / `HIVEFORGE_MCP_MODEL` (agent metadata)
+- Local fallback for tests: set `HIVEFORGE_MAIL_BACKEND=filesystem`
+
+### 7.3 Codex (LLM Provider)
+
+- Codex-backed agents call Codex CLI, which uses the default provider unless configured.
+- Configure with env:
+  - `HIVEFORGE_CODEX_PROVIDER=openai` (default)
+  - `HIVEFORGE_CODEX_MODEL=<model>` (optional)
+  - `HIVEFORGE_CODEX_PROFILE=<profile>` (optional)
+- For local OSS models: set `HIVEFORGE_CODEX_PROVIDER=oss` and ensure Ollama is running.
+
+### 7.4 Commands
 - Demo (orchestrator + stub agents): `npm run demo`
 - All-in-one (orchestrator + stubs + UI): `npm run stack`
 - Orchestrator + UI (no stub agents, for multi-Codex): `npm run stack:codex`
@@ -126,7 +145,7 @@ Source of truth: `schemas/workflow.schema.json`.
 - Tests: `npm test`
 - Type check: `npm run typecheck`
 
-### 7.3 Multi‑Codex Mode (One Codex per Agent)
+### 7.5 Multi‑Codex Mode (One Codex per Agent)
 
 Run orchestrator + UI, then start 4 separate Codex sessions (one per role) to read Mail and reply:
 
@@ -143,7 +162,7 @@ Run orchestrator + UI, then start 4 separate Codex sessions (one per role) to re
 - `npm run hf -- mail poll planner`
 - `npm run hf -- mail reply planner <msg_id> --type PLAN --payload-file plan.json --ack`
 
-### 7.4 Codex‑Backed Agents (New Codex per Task)
+### 7.6 Codex‑Backed Agents (New Codex per Task)
 
 If you want each subagent’s LLM work to be executed by a fresh `codex exec` run:
 

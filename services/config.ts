@@ -18,3 +18,16 @@ export const MEMORY_ROOT = process.env.HIVEFORGE_MEMORY_ROOT
   ? resolve(process.env.HIVEFORGE_MEMORY_ROOT)
   : join(DATA_ROOT, "memory");
 
+export const MAIL_BACKEND = (process.env.HIVEFORGE_MAIL_BACKEND ?? "mcp") as
+  | "filesystem"
+  | "mcp";
+
+export const MCP_BASE_URL =
+  process.env.HIVEFORGE_MCP_BASE_URL ?? "http://127.0.0.1:8765/mcp/";
+export const MCP_PROJECT_KEY = process.env.HIVEFORGE_MCP_PROJECT_KEY ?? process.cwd();
+export const MCP_PROGRAM = process.env.HIVEFORGE_MCP_PROGRAM ?? "hiveforge";
+export const MCP_MODEL = process.env.HIVEFORGE_MCP_MODEL ?? "codex";
+
+export const CODEX_PROVIDER = process.env.HIVEFORGE_CODEX_PROVIDER ?? "openai";
+export const CODEX_MODEL = process.env.HIVEFORGE_CODEX_MODEL;
+export const CODEX_PROFILE = process.env.HIVEFORGE_CODEX_PROFILE;

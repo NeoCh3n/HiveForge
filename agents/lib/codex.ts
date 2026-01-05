@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 import { mkdir, readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 
-import { DATA_ROOT } from "../../services/config.ts";
+import { CODEX_MODEL, CODEX_PROFILE, CODEX_PROVIDER, DATA_ROOT } from "../../services/config.ts";
 
 export type CodexSandbox = "read-only" | "workspace-write" | "danger-full-access";
 
@@ -41,6 +41,13 @@ export async function codexExecJson(
     "exec",
     "-C",
     workdir,
+    ...(CODEX_PROVIDER === "oss"
+      ? ["--oss"]
+      : CODEX_PROVIDER && CODEX_PROVIDER !== "openai"
+      ? ["-c", `model_provider="${CODEX_PROVIDER}"`]
+      : []),
+    ...(CODEX_PROFILE ? ["-p", CODEX_PROFILE] : []),
+    ...(CODEX_MODEL ? ["-m", CODEX_MODEL] : []),
     "-c",
     'model_reasoning_effort="high"',
     "-c",

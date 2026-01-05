@@ -1,9 +1,9 @@
 import { access, mkdir, readFile, rename } from "node:fs/promises";
 import { join } from "node:path";
 
-import { ack, poll, send, subscribe } from "../mail/adapter.ts";
+import { ack, listInbox, poll, send, subscribe } from "../mail/adapter.ts";
 import { link, recall, remember, summarize } from "../memory/adapter.ts";
-import { MAIL_ROOT } from "../config.ts";
+import { MAIL_BACKEND, MAIL_ROOT } from "../config.ts";
 import type { BeadType, Message, MessageType } from "../../types/protocol.ts";
 
 type ParsedArgs = {
@@ -156,8 +156,19 @@ async function mailReply(args: ParsedArgs): Promise<void> {
     process.exit(2);
   }
 
-  const claimedFile = await claimMessageFile(agentId, msgId);
-  const original = (await readJsonFile(claimedFile)) as Message;
+  let original: Message | undefined;
+  if (MAIL_BACKEND === "filesystem") {
+    const claimedFile = await claimMessageFile(agentId, msgId);
+    original = (await readJsonFile(claimedFile)) as Message;
+  } else {
+    const messages = await listInbox(agentId, 200);
+    original = messages.find((m) => m.msg_id === msgId);
+  }
+
+  if (!original) {
+    console.error(`Message ${msgId} not found for ${agentId}`);
+    process.exit(2);
+  }
   const payload = await parseJsonPayload(args.flags);
   const to = getString(args.flags, "to") ?? original.from;
 

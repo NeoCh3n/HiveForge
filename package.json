@@ -9,9 +9,9 @@
     "agent:implementer": "NODE_OPTIONS=--experimental-strip-types node agents/implementer/agent.ts",
     "agent:reviewer": "NODE_OPTIONS=--experimental-strip-types node agents/reviewer/agent.ts",
     "agent:integrator": "NODE_OPTIONS=--experimental-strip-types node agents/integrator/agent.ts",
-    "stack": "NODE_OPTIONS=--experimental-strip-types node services/run/stack.ts",
-    "stack:codex": "NODE_OPTIONS=--experimental-strip-types node services/run/codex-stack.ts",
-    "stack:codex-agents": "NODE_OPTIONS=--experimental-strip-types node services/run/codex-agents-stack.ts",
+    "stack": "HIVEFORGE_MAIL_BACKEND=mcp HIVEFORGE_MCP_BASE_URL=http://127.0.0.1:8765/mcp/ NODE_OPTIONS=--experimental-strip-types node services/run/stack.ts",
+    "stack:codex": "HIVEFORGE_MAIL_BACKEND=mcp HIVEFORGE_MCP_BASE_URL=http://127.0.0.1:8765/mcp/ NODE_OPTIONS=--experimental-strip-types node services/run/codex-stack.ts",
+    "stack:codex-agents": "HIVEFORGE_MAIL_BACKEND=mcp HIVEFORGE_MCP_BASE_URL=http://127.0.0.1:8765/mcp/ NODE_OPTIONS=--experimental-strip-types node services/run/codex-agents-stack.ts",
     "ui": "NODE_OPTIONS=--experimental-strip-types node services/gateway/server.ts",
     "hf": "NODE_OPTIONS=--experimental-strip-types node services/hf/cli.ts",
     "agent:planner:codex": "NODE_OPTIONS=--experimental-strip-types node agents/planner/codex-agent.ts",
@@ -22,7 +22,7 @@
     "codex:implementer": "codex -C . -c ask_for_approval=never -c model_reasoning_effort=high \"HiveForge Implementer Agent. Read AGENTS.md and agents/implementer/CODEX_PROMPT.md.\"",
     "codex:reviewer": "codex -C . -c ask_for_approval=never -c model_reasoning_effort=high \"HiveForge Reviewer Agent. Read AGENTS.md and agents/reviewer/CODEX_PROMPT.md.\"",
     "codex:integrator": "codex -C . -c ask_for_approval=never -c model_reasoning_effort=high \"HiveForge Integrator Agent. Read AGENTS.md and agents/integrator/CODEX_PROMPT.md.\"",
-    "test": "HIVEFORGE_DATA_ROOT=.hiveforge/test NODE_OPTIONS=--experimental-strip-types node --test tests/*.test.ts",
+    "test": "HIVEFORGE_MAIL_BACKEND=filesystem HIVEFORGE_DATA_ROOT=.hiveforge/test NODE_OPTIONS=--experimental-strip-types node --test tests/*.test.ts",
     "typecheck": "tsc -p tsconfig.json"
   }
 }
