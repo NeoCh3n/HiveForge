@@ -9,6 +9,7 @@
     "agent:implementer": "NODE_OPTIONS=--experimental-strip-types node agents/implementer/agent.ts",
     "agent:reviewer": "NODE_OPTIONS=--experimental-strip-types node agents/reviewer/agent.ts",
     "agent:integrator": "NODE_OPTIONS=--experimental-strip-types node agents/integrator/agent.ts",
+    "ui": "NODE_OPTIONS=--experimental-strip-types node services/gateway/server.ts",
     "typecheck": "tsc -p tsconfig.json"
   }
 }

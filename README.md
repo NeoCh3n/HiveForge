@@ -46,6 +46,17 @@ node services/orchestrator/cli.ts issue submit examples/issue.json
 
 Artifacts land in `.hiveforge/` (messages, state, event log, beads).
 
+## UI (Gateway)
+
+Spin up a minimal web console to inspect threads, mailboxes, memory beads, and events:
+
+```bash
+npm run ui
+# open http://localhost:8787
+```
+
+The UI reads from `.hiveforge/` so run it alongside the demo or any live orchestrator.
+
 ## Dev commands
 
 - `npm run orchestrator`: run orchestrator only (start agents separately)

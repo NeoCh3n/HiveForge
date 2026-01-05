@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HiveForge Console</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header>
+      <div class="logo">HiveForge</div>
+      <div class="subtitle">Multi-agent flow · Mail · Memory</div>
+    </header>
+    <main>
+      <section class="panels">
+        <div class="panel thread-list">
+          <div class="panel-head">
+            <div>
+              <div class="label">Threads</div>
+              <div class="title">State machine</div>
+            </div>
+            <button id="refresh">Refresh</button>
+          </div>
+          <div id="threads"></div>
+        </div>
+        <div class="panel details">
+          <div class="panel-head">
+            <div>
+              <div class="label">Details</div>
+              <div class="title" id="thread-title">Select a thread</div>
+            </div>
+          </div>
+          <div class="grid">
+            <div class="card">
+              <div class="card-head">Workflow</div>
+              <pre id="state-view" class="mono"></pre>
+            </div>
+            <div class="card">
+              <div class="card-head">Beads (memory)</div>
+              <div id="beads"></div>
+            </div>
+            <div class="card">
+              <div class="card-head">Mailboxes</div>
+              <div id="mail"></div>
+            </div>
+            <div class="card wide">
+              <div class="card-head">Events</div>
+              <pre id="events" class="mono"></pre>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+    <script src="/app.js"></script>
+  </body>
+</html>
