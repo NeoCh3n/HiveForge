@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "HiveForge Implementer Output",
   "type": "object",
-  "required": ["status", "summary", "changed_files", "tests"],
+  "required": ["status", "summary", "changed_files", "tests", "notes", "blockers"],
   "properties": {
     "status": {
       "type": "string",

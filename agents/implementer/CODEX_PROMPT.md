@@ -30,6 +30,7 @@ Include:
 - `changed_files`
 - `tests` (what ran + result, or why not run)
 - `notes` (array; risks, follow-ups, tradeoffs)
+- `blockers` (array; empty if none)
 
 ## Safety
 

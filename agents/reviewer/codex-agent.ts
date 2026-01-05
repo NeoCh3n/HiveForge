@@ -65,7 +65,6 @@ async function loop(): Promise<void> {
         await ack(AGENT_ID, msg.msg_id);
       } catch (err) {
         console.error("[reviewer:codex] failed to handle message", msg.msg_id, err);
-        await ack(AGENT_ID, msg.msg_id);
       }
     }
     await sleep(SLEEP_MS);
@@ -76,4 +75,3 @@ loop().catch((err) => {
   console.error("[reviewer:codex] fatal error", err);
   process.exit(1);
 });
-

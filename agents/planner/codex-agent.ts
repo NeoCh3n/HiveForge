@@ -65,8 +65,6 @@ async function loop(): Promise<void> {
         await ack(AGENT_ID, msg.msg_id);
       } catch (err) {
         console.error("[planner:codex] failed to handle message", msg.msg_id, err);
-        // Ack to avoid retry loops; inspect the run dir from logs.
-        await ack(AGENT_ID, msg.msg_id);
       }
     }
     await sleep(SLEEP_MS);
@@ -77,4 +75,3 @@ loop().catch((err) => {
   console.error("[planner:codex] fatal error", err);
   process.exit(1);
 });
-
