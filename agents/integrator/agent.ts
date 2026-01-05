@@ -4,9 +4,15 @@ import type { Message } from "../../types/protocol.ts";
 
 const AGENT_ID = "integrator";
 const SLEEP_MS = 700;
+const ERROR_BACKOFF_MS = 1000;
+const MAX_BACKOFF_MS = 8000;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function nextBackoff(currentMs: number): number {
+  return currentMs ? Math.min(currentMs * 2, MAX_BACKOFF_MS) : ERROR_BACKOFF_MS;
 }
 
 async function handle(message: Message): Promise<void> {
@@ -32,11 +38,26 @@ async function handle(message: Message): Promise<void> {
 
 async function loop(): Promise<void> {
   console.log("[integrator] started");
+  let backoffMs = 0;
   while (true) {
-    const messages = await poll(AGENT_ID, 10);
+    let messages: Message[] = [];
+    try {
+      messages = await poll(AGENT_ID, 10);
+      backoffMs = 0;
+    } catch (err) {
+      backoffMs = nextBackoff(backoffMs);
+      console.error(`[integrator] poll failed; retrying in ${backoffMs}ms`, err);
+      await sleep(backoffMs);
+      continue;
+    }
+
     for (const msg of messages) {
-      await handle(msg);
-      await ack(AGENT_ID, msg.msg_id);
+      try {
+        await handle(msg);
+        await ack(AGENT_ID, msg.msg_id);
+      } catch (err) {
+        console.error("[integrator] failed to handle message", msg.msg_id, err);
+      }
     }
     await sleep(SLEEP_MS);
   }

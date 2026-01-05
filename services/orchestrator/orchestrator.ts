@@ -8,6 +8,8 @@ import type { Message, WorkflowState, WorkflowStateValue } from "../../types/pro
 
 export const ORCHESTRATOR_ID = "orchestrator";
 const SLEEP_MS = 800;
+const ERROR_BACKOFF_MS = 1000;
+const MAX_BACKOFF_MS = 8000;
 
 async function ensureStateDir(): Promise<void> {
   await mkdir(STATE_DIR, { recursive: true });
@@ -47,6 +49,10 @@ export async function saveState(state: WorkflowState): Promise<void> {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function nextBackoff(currentMs: number): number {
+  return currentMs ? Math.min(currentMs * 2, MAX_BACKOFF_MS) : ERROR_BACKOFF_MS;
 }
 
 async function transition(
@@ -229,11 +235,26 @@ export async function runOrchestrator(): Promise<void> {
   await ensureStateDir();
   console.log("Orchestrator running (file-based mail/memory). Ctrl+C to stop.");
 
+  let backoffMs = 0;
   while (true) {
-    const messages = await poll(ORCHESTRATOR_ID, 50);
+    let messages: Message[] = [];
+    try {
+      messages = await poll(ORCHESTRATOR_ID, 50);
+      backoffMs = 0;
+    } catch (err) {
+      backoffMs = nextBackoff(backoffMs);
+      console.error(`[orchestrator] poll failed; retrying in ${backoffMs}ms`, err);
+      await sleep(backoffMs);
+      continue;
+    }
+
     for (const msg of messages) {
-      await processMessage(msg);
-      await ack(ORCHESTRATOR_ID, msg.msg_id);
+      try {
+        await processMessage(msg);
+        await ack(ORCHESTRATOR_ID, msg.msg_id);
+      } catch (err) {
+        console.error("[orchestrator] failed to handle message", msg.msg_id, err);
+      }
     }
     await sleep(SLEEP_MS);
   }
