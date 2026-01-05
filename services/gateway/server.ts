@@ -1,8 +1,10 @@
 // @ts-nocheck
 import { createServer } from "node:http";
-import { readFile, readdir, stat } from "node:fs/promises";
+import { readFile, readdir, stat, mkdir } from "node:fs/promises";
 import { join, resolve, extname } from "node:path";
 import { URL } from "node:url";
+import { randomUUID } from "node:crypto";
+import { send as mailSend } from "../mail/adapter.ts";
 
 const PORT = parseInt(process.env.PORT ?? "8787", 10);
 const DATA_ROOT = resolve(".hiveforge");
@@ -21,6 +23,13 @@ async function safeJson(path: string) {
   }
 }
 
+async function ensureDirs() {
+  await mkdir(DATA_ROOT, { recursive: true });
+  await mkdir(STATE_DIR, { recursive: true });
+  await mkdir(MAIL_DIR, { recursive: true });
+  await mkdir(join(DATA_ROOT, "memory"), { recursive: true });
+}
+
 async function listStates() {
   try {
     const files = await readdir(STATE_DIR);
@@ -35,6 +44,19 @@ async function listStates() {
     return items;
   } catch {
     return [];
+  }
+}
+
+async function collectAllMail() {
+  try {
+    const agents = await readdir(MAIL_DIR);
+    const mailbox = {};
+    for (const agent of agents) {
+      mailbox[agent] = await listMessages(agent);
+    }
+    return mailbox;
+  } catch {
+    return {};
   }
 }
 
@@ -87,6 +109,21 @@ async function readEvents(limit = 200) {
   }
 }
 
+async function bodyJson(req) {
+  return await new Promise((resolve) => {
+    const chunks = [];
+    req.on("data", (c) => chunks.push(c));
+    req.on("end", () => {
+      try {
+        const raw = Buffer.concat(chunks).toString("utf-8");
+        resolve(raw ? JSON.parse(raw) : {});
+      } catch {
+        resolve({});
+      }
+    });
+  });
+}
+
 function json(res, status, payload) {
   res.writeHead(status, { "Content-Type": "application/json" });
   res.end(JSON.stringify(payload));
@@ -118,39 +155,81 @@ async function serveStatic(pathname: string, res) {
   }
 }
 
-const server = createServer(async (req, res) => {
-  const url = new URL(req.url || "/", "http://localhost");
-  const path = url.pathname;
+const server = createServer();
 
-  if (path.startsWith("/api/state")) {
-    const data = await listStates();
-    json(res, 200, { data });
-    return;
-  }
+async function start() {
+  await ensureDirs();
 
-  if (path.startsWith("/api/messages")) {
-    const agent = url.searchParams.get("agent") || "orchestrator";
-    const data = await listMessages(agent);
-    json(res, 200, { data });
-    return;
-  }
+  server.on("request", async (req, res) => {
+    const url = new URL(req.url || "/", "http://localhost");
+    const path = url.pathname;
 
-  if (path.startsWith("/api/beads")) {
-    const thread = url.searchParams.get("thread_id") || undefined;
-    const data = await listBeads(thread, 100);
-    json(res, 200, { data });
-    return;
-  }
+    // Dashboard bundle: states + beads + mail + events
+    if (path === "/api/dashboard") {
+      const [states, beads, mail, events] = await Promise.all([
+        listStates(),
+        listBeads(undefined, 100),
+        collectAllMail(),
+        readEvents(300)
+      ]);
+      json(res, 200, { data: { states, beads, mail, events } });
+      return;
+    }
 
-  if (path.startsWith("/api/events")) {
-    const data = await readEvents(300);
-    json(res, 200, { data });
-    return;
-  }
+    // Submit issue directly (drops an ISSUE message to orchestrator inbox)
+    if (path === "/api/issue" && req.method === "POST") {
+      const body = await bodyJson(req);
+      const issue = body?.issue ?? body ?? {};
+      const thread = issue.thread_id ?? `issue-${randomUUID()}`;
+      const msg = {
+        thread_id: thread,
+        msg_id: randomUUID(),
+        from: "ui",
+        to: "orchestrator",
+        type: "ISSUE",
+        payload: { ...issue, thread_id: thread },
+        created_at: new Date().toISOString()
+      };
+      await mailSend(msg);
+      json(res, 200, { ok: true, thread_id: thread });
+      return;
+    }
 
-  await serveStatic(path, res);
-});
+    if (path.startsWith("/api/state")) {
+      const data = await listStates();
+      json(res, 200, { data });
+      return;
+    }
 
-server.listen(PORT, () => {
-  console.log(`HiveForge UI running at http://localhost:${PORT}`);
+    if (path.startsWith("/api/messages")) {
+      const agent = url.searchParams.get("agent") || "orchestrator";
+      const data = await listMessages(agent);
+      json(res, 200, { data });
+      return;
+    }
+
+    if (path.startsWith("/api/beads")) {
+      const thread = url.searchParams.get("thread_id") || undefined;
+      const data = await listBeads(thread, 100);
+      json(res, 200, { data });
+      return;
+    }
+
+    if (path.startsWith("/api/events")) {
+      const data = await readEvents(300);
+      json(res, 200, { data });
+      return;
+    }
+
+    await serveStatic(path, res);
+  });
+
+  server.listen(PORT, () => {
+    console.log(`HiveForge UI running at http://localhost:${PORT}`);
+  });
+}
+
+start().catch((err) => {
+  console.error("Gateway failed to start:", err);
+  process.exit(1);
 });

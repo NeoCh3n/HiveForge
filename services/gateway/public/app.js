@@ -5,31 +5,32 @@ const beadsEl = document.getElementById("beads");
 const mailEl = document.getElementById("mail");
 const eventsEl = document.getElementById("events");
 const refreshBtn = document.getElementById("refresh");
+const submitBtn = document.getElementById("submit-demo");
 
-let threads = [];
+let dashboard = { states: [], beads: [], mail: {}, events: [] };
 let selectedThread = null;
 
-async function fetchJson(url) {
-  const res = await fetch(url);
+async function fetchJson(url, opts) {
+  const res = await fetch(url, opts);
   if (!res.ok) throw new Error(`Failed ${url}: ${res.status}`);
   return res.json();
 }
 
 function renderThreads() {
   threadsEl.innerHTML = "";
-  if (!threads.length) {
-    threadsEl.innerHTML = `<div class="muted">No threads yet. Run the demo.</div>`;
+  if (!dashboard.states.length) {
+    threadsEl.innerHTML = `<div class="muted">No threads yet. Submit an issue.</div>`;
     return;
   }
-  threads.forEach((t) => {
+  dashboard.states.forEach((t) => {
     const div = document.createElement("div");
     div.className = `thread ${selectedThread === t.thread_id ? "active" : ""}`;
     div.onclick = () => {
       selectedThread = t.thread_id;
       renderThreads();
       renderState(t);
-      loadBeads();
-      loadMail();
+      renderBeads();
+      renderMail();
     };
     div.innerHTML = `
       <div class="thread-id">${t.thread_id}</div>
@@ -47,100 +48,107 @@ function renderState(state) {
     return;
   }
   threadTitleEl.textContent = state.thread_id;
-  const copy = { ...state };
-  stateEl.textContent = JSON.stringify(copy, null, 2);
+  stateEl.textContent = JSON.stringify(state, null, 2);
 }
 
-async function loadThreads() {
-  try {
-    const data = await fetchJson("/api/state");
-    threads = data.data || [];
-    if (!selectedThread && threads.length) {
-      selectedThread = threads[0].thread_id;
-    }
-    renderThreads();
-    const current = threads.find((t) => t.thread_id === selectedThread);
-    renderState(current);
-  } catch (err) {
-    threadsEl.innerHTML = `<div class="muted">Failed to load threads.</div>`;
-    console.error(err);
-  }
-}
-
-async function loadBeads() {
+function renderBeads() {
   if (!selectedThread) {
     beadsEl.innerHTML = `<div class="muted">Select a thread.</div>`;
     return;
   }
-  try {
-    const data = await fetchJson(`/api/beads?thread_id=${encodeURIComponent(selectedThread)}`);
-    const beads = data.data || [];
-    if (!beads.length) {
-      beadsEl.innerHTML = `<div class="muted">No beads for this thread.</div>`;
-      return;
-    }
-    beadsEl.innerHTML = "";
-    beads.forEach((b) => {
-      const item = document.createElement("div");
-      item.className = "mono";
-      item.innerHTML = `<span class="badge">${b.type}</span> ${b.title}<br/><span class="muted">${b.created_at}</span><br/>${b.content}`;
-      beadsEl.appendChild(item);
-    });
-  } catch (err) {
-    beadsEl.innerHTML = `<div class="muted">Failed to load beads.</div>`;
-    console.error(err);
+  const beads = (dashboard.beads || []).filter((b) => b.thread_id === selectedThread);
+  if (!beads.length) {
+    beadsEl.innerHTML = `<div class="muted">No beads for this thread.</div>`;
+    return;
   }
+  beadsEl.innerHTML = "";
+  beads.forEach((b) => {
+    const item = document.createElement("div");
+    item.className = "mono";
+    item.innerHTML = `<span class="badge">${b.type}</span> ${b.title}<br/><span class="muted">${b.created_at}</span><br/>${b.content}`;
+    beadsEl.appendChild(item);
+  });
 }
 
-async function loadMail() {
-  try {
-    const agents = ["orchestrator", "planner", "implementer", "reviewer", "integrator"];
-    mailEl.innerHTML = "";
-    for (const agent of agents) {
-      const data = await fetchJson(`/api/messages?agent=${agent}`);
-      const items = data.data || [];
-      const box = document.createElement("div");
-      box.className = "mono";
-      box.innerHTML =
-        `<div class="badge">${agent}</div>` +
-        (items.length
-          ? items
-              .map(
-                (m) =>
-                  `${m.created_at ?? ""} [${m.type}] ${m.thread_id}\n${JSON.stringify(
-                    m.payload ?? {},
-                    null,
-                    2
-                  )}`
-              )
-              .join("\n\n")
-          : "Inbox empty");
-      mailEl.appendChild(box);
-    }
-  } catch (err) {
-    mailEl.innerHTML = `<div class="muted">Failed to load mail.</div>`;
-    console.error(err);
-  }
+function renderMail() {
+  const agents = ["orchestrator", "planner", "implementer", "reviewer", "integrator"];
+  mailEl.innerHTML = "";
+  agents.forEach((agent) => {
+    const items = (dashboard.mail && dashboard.mail[agent]) || [];
+    const box = document.createElement("div");
+    box.className = "mono";
+    box.innerHTML =
+      `<div class="badge">${agent}</div>` +
+      (items.length
+        ? items
+            .map(
+              (m) =>
+                `${m.created_at ?? ""} [${m.type}] ${m.thread_id}\n${JSON.stringify(
+                  m.payload ?? {},
+                  null,
+                  2
+                )}`
+            )
+            .join("\n\n")
+        : "Inbox empty");
+    mailEl.appendChild(box);
+  });
 }
 
-async function loadEvents() {
-  try {
-    const data = await fetchJson("/api/events");
-    const lines = data.data || [];
-    eventsEl.textContent = lines.join("\n");
-  } catch (err) {
-    eventsEl.textContent = "Failed to load events.";
-    console.error(err);
-  }
+function renderEvents() {
+  const lines = dashboard.events || [];
+  eventsEl.textContent = lines.join("\n");
 }
 
 async function refreshAll() {
-  await loadThreads();
-  await loadBeads();
-  await loadMail();
-  await loadEvents();
+  try {
+    const data = await fetchJson("/api/dashboard");
+    dashboard = data.data || { states: [], beads: [], mail: {}, events: [] };
+    if (!selectedThread && dashboard.states.length) {
+      selectedThread = dashboard.states[0].thread_id;
+    }
+    renderThreads();
+    renderState(dashboard.states.find((t) => t.thread_id === selectedThread));
+    renderBeads();
+    renderMail();
+    renderEvents();
+  } catch (err) {
+    threadsEl.innerHTML = `<div class="muted">Failed to load dashboard.</div>`;
+    console.error(err);
+  }
+}
+
+async function submitDemoIssue() {
+  submitBtn.disabled = true;
+  submitBtn.textContent = "Submitting...";
+  try {
+    const issue = {
+      title: "UI-submitted issue",
+      description: "Created from HiveForge UI to test flow + mail + memory.",
+      acceptance_criteria: [
+        "Planner responds",
+        "Implementer responds",
+        "Reviewer responds",
+        "Thread ends in DONE and writes bead"
+      ]
+    };
+    const res = await fetchJson("/api/issue", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ issue })
+    });
+    selectedThread = res.thread_id;
+    await refreshAll();
+  } catch (err) {
+    alert("Failed to submit issue. Make sure orchestrator + agents are running.");
+    console.error(err);
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = "Submit demo issue";
+  }
 }
 
 refreshBtn.addEventListener("click", refreshAll);
+submitBtn.addEventListener("click", submitDemoIssue);
 refreshAll();
 setInterval(refreshAll, 2500);

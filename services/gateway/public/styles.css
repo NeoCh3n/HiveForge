@@ -65,6 +65,11 @@ main {
   margin-bottom: 12px;
 }
 
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
 .label {
   font-size: 12px;
   text-transform: uppercase;

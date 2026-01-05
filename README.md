@@ -48,14 +48,17 @@ Artifacts land in `.hiveforge/` (messages, state, event log, beads).
 
 ## UI (Gateway)
 
-Spin up a minimal web console to inspect threads, mailboxes, memory beads, and events:
+Spin up a minimal web console to inspect threads (flow), mailboxes (mail), memory beads (beads), and events:
 
 ```bash
 npm run ui
 # open http://localhost:8787
 ```
 
-The UI reads from `.hiveforge/` so run it alongside the demo or any live orchestrator.
+Tips:
+- Run alongside `npm run demo` (or your own orchestrator + agents) so data flows.
+- Use “Submit demo issue” in the UI to send an ISSUE message to the orchestrator inbox without the CLI.
+- The UI reads everything from `.hiveforge/` (state machine, mailboxes, beads, event log).
 
 ## Dev commands
 
