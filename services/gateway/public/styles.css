@@ -172,6 +172,15 @@ button.primary {
   margin-bottom: 8px;
 }
 
+.latest-event {
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: linear-gradient(120deg, rgba(103, 232, 249, 0.1), rgba(168, 85, 247, 0.06));
+  margin-bottom: 8px;
+  font-family: "DM Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+}
+
 .mono {
   font-family: "DM Mono", "SFMono-Regular", Menlo, Consolas, monospace;
   white-space: pre-wrap;

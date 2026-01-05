@@ -4,6 +4,7 @@ const threadTitleEl = document.getElementById("thread-title");
 const beadsEl = document.getElementById("beads");
 const mailEl = document.getElementById("mail");
 const eventsEl = document.getElementById("events");
+const latestEventEl = document.getElementById("latest-event");
 const refreshBtn = document.getElementById("refresh");
 const newIssueBtn = document.getElementById("new-issue");
 
@@ -105,7 +106,14 @@ function renderMail() {
 }
 
 function renderEvents() {
-  const lines = dashboard.events || [];
+  const lines = (dashboard.events || []).slice().reverse(); // newest first
+  if (lines.length) {
+    latestEventEl.textContent = lines[0];
+    latestEventEl.classList.remove("muted");
+  } else {
+    latestEventEl.textContent = "No events yet.";
+    latestEventEl.classList.add("muted");
+  }
   eventsEl.textContent = lines.join("\n");
 }
 
