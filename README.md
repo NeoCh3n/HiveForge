@@ -141,6 +141,9 @@ By default, `services/mail` targets the vendor MCP server.
 # default: http://127.0.0.1:8765/mcp/
 export HIVEFORGE_MCP_BASE_URL="http://127.0.0.1:8765/mcp/"
 export HIVEFORGE_MCP_PROJECT_KEY="$(pwd)"
+# share one MCP agent per model (planner/implementer/reviewer/integrator)
+export HIVEFORGE_MCP_AGENT_SCOPE=model
+export HIVEFORGE_MCP_SHARED_AGENT_IDS="planner,implementer,reviewer,integrator"
 ```
 
 If you need the local filesystem mailbox for tests/offline:
@@ -155,7 +158,7 @@ Codex-backed agents call the Codex CLI. By default it uses the OpenAI provider.
 
 ```bash
 export HIVEFORGE_CODEX_PROVIDER=openai   # default
-export HIVEFORGE_CODEX_MODEL="gpt-5.2"   # optional
+export HIVEFORGE_CODEX_MODEL="gpt-5.2"   # default
 export HIVEFORGE_CODEX_PROFILE="default" # optional
 ```
 

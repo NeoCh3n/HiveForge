@@ -5,14 +5,19 @@ import {
   MAIL_BACKEND,
   MAIL_ROOT,
   MCP_BASE_URL,
+  MCP_AGENT_SCOPE,
   MCP_MODEL,
   MCP_PROGRAM,
-  MCP_PROJECT_KEY
+  MCP_PROJECT_KEY,
+  MCP_SHARED_AGENT_IDS
 } from "../config.ts";
 import type { Message, MessageType } from "../../types/protocol.ts";
 
 const DEFAULT_SUBSCRIBE_INTERVAL_MS = 800;
 const AGENT_MAP_FILE = join(MAIL_ROOT, "agent-map.json");
+const ACK_DIR = join(MAIL_ROOT, "acks");
+const ACK_CACHE_LIMIT = 500;
+const SHARED_AGENT_IDS = new Set(MCP_SHARED_AGENT_IDS);
 
 async function ensureDir(path: string): Promise<void> {
   try {
@@ -20,6 +25,25 @@ async function ensureDir(path: string): Promise<void> {
   } catch {
     await mkdir(path, { recursive: true });
   }
+}
+
+async function loadAcked(agentId: string): Promise<Set<string>> {
+  try {
+    const raw = await readFile(join(ACK_DIR, `${agentId}.json`), "utf-8");
+    const list = JSON.parse(raw) as string[];
+    return new Set(list.map((item) => String(item)));
+  } catch {
+    return new Set();
+  }
+}
+
+async function saveAcked(agentId: string, ids: Set<string>): Promise<void> {
+  await ensureDir(ACK_DIR);
+  const list = Array.from(ids);
+  if (list.length > ACK_CACHE_LIMIT) {
+    list.splice(0, list.length - ACK_CACHE_LIMIT);
+  }
+  await writeFile(join(ACK_DIR, `${agentId}.json`), JSON.stringify(list, null, 2), "utf-8");
 }
 
 async function inboxDir(agentId: string): Promise<string> {
@@ -152,7 +176,8 @@ async function fsListInbox(agentId: string, limit = 50): Promise<Message[]> {
 
 type AgentMap = {
   internalToVendor: Record<string, string>;
-  vendorToInternal: Record<string, string>;
+  vendorToInternal: Record<string, string | string[]>;
+  modelToVendor: Record<string, string>;
 };
 
 let ensuredProject = false;
@@ -164,16 +189,55 @@ async function loadAgentMap(): Promise<AgentMap> {
     const parsed = JSON.parse(raw) as AgentMap;
     return {
       internalToVendor: parsed.internalToVendor ?? {},
-      vendorToInternal: parsed.vendorToInternal ?? {}
+      vendorToInternal: parsed.vendorToInternal ?? {},
+      modelToVendor: parsed.modelToVendor ?? {}
     };
   } catch {
-    return { internalToVendor: {}, vendorToInternal: {} };
+    return { internalToVendor: {}, vendorToInternal: {}, modelToVendor: {} };
   }
 }
 
 async function saveAgentMap(map: AgentMap): Promise<void> {
   await ensureDir(MAIL_ROOT);
   await writeFile(AGENT_MAP_FILE, JSON.stringify(map, null, 2), "utf-8");
+}
+
+function shouldShareModelAgent(internalId: string): boolean {
+  return MCP_AGENT_SCOPE === "model" && SHARED_AGENT_IDS.has(internalId);
+}
+
+function modelAgentKey(): string {
+  return `${MCP_PROGRAM}:${MCP_MODEL}`;
+}
+
+function addVendorMapping(map: AgentMap, internalId: string, vendorName: string): boolean {
+  let changed = false;
+  if (map.internalToVendor[internalId] !== vendorName) {
+    map.internalToVendor[internalId] = vendorName;
+    changed = true;
+  }
+
+  const existing = map.vendorToInternal[vendorName];
+  if (!existing) {
+    map.vendorToInternal[vendorName] = internalId;
+    changed = true;
+    return changed;
+  }
+
+  if (Array.isArray(existing)) {
+    if (!existing.includes(internalId)) {
+      existing.push(internalId);
+      changed = true;
+    }
+    return changed;
+  }
+
+  if (existing !== internalId) {
+    map.vendorToInternal[vendorName] = [existing, internalId];
+    changed = true;
+  }
+
+  return changed;
 }
 
 type McpToolResult<T> = {
@@ -261,6 +325,29 @@ async function ensureProject(): Promise<void> {
 
 async function ensureVendorAgent(internalId: string): Promise<string> {
   const map = await loadAgentMap();
+  const shareByModel = shouldShareModelAgent(internalId);
+  if (shareByModel) {
+    const key = modelAgentKey();
+    let sharedVendor = map.modelToVendor[key];
+    if (!sharedVendor) {
+      for (const candidateId of SHARED_AGENT_IDS) {
+        const candidate = map.internalToVendor[candidateId];
+        if (candidate) {
+          sharedVendor = candidate;
+          break;
+        }
+      }
+      if (sharedVendor) {
+        map.modelToVendor[key] = sharedVendor;
+      }
+    }
+    if (sharedVendor) {
+      const changed = addVendorMapping(map, internalId, sharedVendor);
+      if (changed) await saveAgentMap(map);
+      return sharedVendor;
+    }
+  }
+
   const existing = map.internalToVendor[internalId];
   if (existing) return existing;
 
@@ -269,11 +356,13 @@ async function ensureVendorAgent(internalId: string): Promise<string> {
     project_key: MCP_PROJECT_KEY,
     program: MCP_PROGRAM,
     model: MCP_MODEL,
-    task_description: internalId
+    task_description: shareByModel ? `shared model agent (${MCP_MODEL})` : internalId
   });
 
-  map.internalToVendor[internalId] = result.name;
-  map.vendorToInternal[result.name] = internalId;
+  if (shareByModel) {
+    map.modelToVendor[modelAgentKey()] = result.name;
+  }
+  addVendorMapping(map, internalId, result.name);
   await saveAgentMap(map);
   return result.name;
 }
@@ -281,7 +370,11 @@ async function ensureVendorAgent(internalId: string): Promise<string> {
 async function resolveInternalAgent(vendorName?: string): Promise<string | undefined> {
   if (!vendorName) return undefined;
   const map = await loadAgentMap();
-  return map.vendorToInternal[vendorName] ?? vendorName;
+  const mapped = map.vendorToInternal[vendorName];
+  if (Array.isArray(mapped)) {
+    return mapped.length === 1 ? mapped[0] : undefined;
+  }
+  return mapped ?? vendorName;
 }
 
 function parseTypeFromSubject(subject?: string): string | undefined {
@@ -331,6 +424,11 @@ function mapImportance(importance?: string): "low" | "normal" | "high" {
   return "normal";
 }
 
+function shouldAcceptMessage(agentId: string, parsed?: Partial<Message>): boolean {
+  if (!shouldShareModelAgent(agentId)) return true;
+  return parsed?.to === agentId;
+}
+
 async function mcpSend(message: Partial<Message>): Promise<Message> {
   const msg = normalizeMessage(message);
   const fromVendor = await ensureVendorAgent(msg.from);
@@ -367,16 +465,19 @@ async function mcpPoll(agentId: string, limit = 20): Promise<Message[]> {
     include_bodies: true
   });
 
+  const acked = await loadAcked(agentId);
   const list = Array.isArray(items) ? items : [];
   const messages: Message[] = [];
   for (const item of list) {
     const parsed = tryParseBody(item.body_md);
+    if (!shouldAcceptMessage(agentId, parsed)) continue;
     const from = (await resolveInternalAgent(item.from)) ?? parsed?.from ?? "unknown";
     const type = normalizeType(parsed?.type ?? parseTypeFromSubject(item.subject));
     const thread_id =
       parsed?.thread_id ?? item.thread_id ?? `thread-${String(item.id ?? randomUUID())}`;
     const created_at = parsed?.created_at ?? item.created_ts ?? new Date().toISOString();
     const msg_id = String(item.id ?? parsed?.msg_id ?? randomUUID());
+    if (acked.has(msg_id)) continue;
     const payload = parsed?.payload ?? { body: item.body_md ?? "" };
 
     messages.push({
@@ -408,6 +509,9 @@ async function mcpAck(agentId: string, msgId: string): Promise<void> {
     agent_name: vendorName,
     message_id
   });
+  const acked = await loadAcked(agentId);
+  acked.add(String(msgId));
+  await saveAcked(agentId, acked);
 }
 
 async function mcpLatestModified(agentId: string): Promise<number> {
@@ -425,16 +529,19 @@ async function mcpListInbox(agentId: string, limit = 50): Promise<Message[]> {
     include_bodies: true
   });
 
+  const acked = await loadAcked(agentId);
   const list = Array.isArray(items) ? items : [];
   const messages: Message[] = [];
   for (const item of list) {
     const parsed = tryParseBody(item.body_md);
+    if (!shouldAcceptMessage(agentId, parsed)) continue;
     const from = (await resolveInternalAgent(item.from)) ?? parsed?.from ?? "unknown";
     const type = normalizeType(parsed?.type ?? parseTypeFromSubject(item.subject));
     const thread_id =
       parsed?.thread_id ?? item.thread_id ?? `thread-${String(item.id ?? randomUUID())}`;
     const created_at = parsed?.created_at ?? item.created_ts ?? new Date().toISOString();
     const msg_id = String(item.id ?? parsed?.msg_id ?? randomUUID());
+    if (acked.has(msg_id)) continue;
     const payload = parsed?.payload ?? { body: item.body_md ?? "" };
 
     messages.push({

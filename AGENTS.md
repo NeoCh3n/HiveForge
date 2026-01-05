@@ -121,6 +121,8 @@ Source of truth: `schemas/workflow.schema.json`.
   - `HIVEFORGE_MCP_BASE_URL` (default `http://127.0.0.1:8765/mcp/`)
   - `HIVEFORGE_MCP_PROJECT_KEY` (default: repo path)
   - `HIVEFORGE_MCP_PROGRAM` / `HIVEFORGE_MCP_MODEL` (agent metadata)
+  - `HIVEFORGE_MCP_AGENT_SCOPE=model` (share one MCP agent per model)
+  - `HIVEFORGE_MCP_SHARED_AGENT_IDS` (default `planner,implementer,reviewer,integrator`)
 - Local fallback for tests: set `HIVEFORGE_MAIL_BACKEND=filesystem`
 
 ### 7.3 Codex (LLM Provider)
@@ -128,7 +130,7 @@ Source of truth: `schemas/workflow.schema.json`.
 - Codex-backed agents call Codex CLI, which uses the default provider unless configured.
 - Configure with env:
   - `HIVEFORGE_CODEX_PROVIDER=openai` (default)
-  - `HIVEFORGE_CODEX_MODEL=<model>` (optional)
+  - `HIVEFORGE_CODEX_MODEL=gpt-5.2` (default)
   - `HIVEFORGE_CODEX_PROFILE=<profile>` (optional)
 - For local OSS models: set `HIVEFORGE_CODEX_PROVIDER=oss` and ensure Ollama is running.
 

@@ -26,8 +26,18 @@ export const MCP_BASE_URL =
   process.env.HIVEFORGE_MCP_BASE_URL ?? "http://127.0.0.1:8765/mcp/";
 export const MCP_PROJECT_KEY = process.env.HIVEFORGE_MCP_PROJECT_KEY ?? process.cwd();
 export const MCP_PROGRAM = process.env.HIVEFORGE_MCP_PROGRAM ?? "hiveforge";
-export const MCP_MODEL = process.env.HIVEFORGE_MCP_MODEL ?? "codex";
 
 export const CODEX_PROVIDER = process.env.HIVEFORGE_CODEX_PROVIDER ?? "openai";
-export const CODEX_MODEL = process.env.HIVEFORGE_CODEX_MODEL;
+export const CODEX_MODEL = process.env.HIVEFORGE_CODEX_MODEL ?? "gpt-5.2";
 export const CODEX_PROFILE = process.env.HIVEFORGE_CODEX_PROFILE;
+
+export const MCP_MODEL = process.env.HIVEFORGE_MCP_MODEL ?? CODEX_MODEL ?? "codex";
+export const MCP_AGENT_SCOPE = (process.env.HIVEFORGE_MCP_AGENT_SCOPE ?? "model") as
+  | "role"
+  | "model";
+export const MCP_SHARED_AGENT_IDS = (
+  process.env.HIVEFORGE_MCP_SHARED_AGENT_IDS ?? "planner,implementer,reviewer,integrator"
+)
+  .split(",")
+  .map((value) => value.trim())
+  .filter(Boolean);
