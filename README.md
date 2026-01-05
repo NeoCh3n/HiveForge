@@ -68,6 +68,15 @@ Tips:
 
 Node 24’s `--experimental-strip-types` executes `.ts` directly; no build step required.
 
+### All-in-one stack
+
+Run everything (orchestrator + agents + UI) with one command, then open the UI:
+
+```bash
+npm run stack
+# UI: http://localhost:8787
+```
+
 ## Protocols (summary)
 
 - Message (`schemas/message.schema.json`):
