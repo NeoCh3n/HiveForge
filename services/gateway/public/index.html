@@ -20,7 +20,7 @@
               <div class="title">State machine</div>
             </div>
             <div class="actions">
-              <button id="submit-demo">Submit demo issue</button>
+              <button id="new-issue">New issue</button>
               <button id="refresh">Refresh</button>
             </div>
           </div>
@@ -54,6 +54,37 @@
         </div>
       </section>
     </main>
+
+    <div id="modal-backdrop" class="backdrop hidden">
+      <div class="modal">
+        <div class="modal-head">
+          <div>
+            <div class="label">New Issue</div>
+            <div class="title">Create a task for the orchestrator</div>
+          </div>
+          <button class="ghost" id="modal-close">×</button>
+        </div>
+        <form id="issue-form">
+          <label>
+            Title
+            <input id="issue-title" type="text" placeholder="Add feature X" required />
+          </label>
+          <label>
+            Description
+            <textarea id="issue-desc" rows="3" placeholder="Context, goals, constraints"></textarea>
+          </label>
+          <label>
+            Acceptance criteria (one per line)
+            <textarea id="issue-criteria" rows="3" placeholder="e.g. Tests added&#10;CI passes&#10;No breaking changes"></textarea>
+          </label>
+          <div class="form-actions">
+            <button type="button" class="ghost" id="modal-cancel">Cancel</button>
+            <button type="submit" class="primary" id="modal-submit">Submit</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
     <script src="/app.js"></script>
   </body>
 </html>

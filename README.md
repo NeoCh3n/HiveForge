@@ -57,7 +57,7 @@ npm run ui
 
 Tips:
 - Run alongside `npm run demo` (or your own orchestrator + agents) so data flows.
-- Use “Submit demo issue” in the UI to send an ISSUE message to the orchestrator inbox without the CLI.
+- Use “New issue” in the UI to send an ISSUE with title/description/acceptance criteria to the orchestrator inbox (no CLI needed).
 - The UI reads everything from `.hiveforge/` (state machine, mailboxes, beads, event log).
 
 ## Dev commands

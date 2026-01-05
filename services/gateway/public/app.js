@@ -5,7 +5,16 @@ const beadsEl = document.getElementById("beads");
 const mailEl = document.getElementById("mail");
 const eventsEl = document.getElementById("events");
 const refreshBtn = document.getElementById("refresh");
-const submitBtn = document.getElementById("submit-demo");
+const newIssueBtn = document.getElementById("new-issue");
+
+const backdrop = document.getElementById("modal-backdrop");
+const modalClose = document.getElementById("modal-close");
+const modalCancel = document.getElementById("modal-cancel");
+const modalSubmit = document.getElementById("modal-submit");
+const issueForm = document.getElementById("issue-form");
+const titleInput = document.getElementById("issue-title");
+const descInput = document.getElementById("issue-desc");
+const criteriaInput = document.getElementById("issue-criteria");
 
 let dashboard = { states: [], beads: [], mail: {}, events: [] };
 let selectedThread = null;
@@ -118,19 +127,32 @@ async function refreshAll() {
   }
 }
 
-async function submitDemoIssue() {
-  submitBtn.disabled = true;
-  submitBtn.textContent = "Submitting...";
+function openModal() {
+  backdrop.classList.remove("hidden");
+  titleInput.focus();
+}
+
+function closeModal() {
+  backdrop.classList.add("hidden");
+  issueForm.reset();
+}
+
+function parseCriteria(text) {
+  return text
+    .split("\n")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+async function submitIssue(event) {
+  event.preventDefault();
+  modalSubmit.disabled = true;
+  modalSubmit.textContent = "Submitting...";
   try {
     const issue = {
-      title: "UI-submitted issue",
-      description: "Created from HiveForge UI to test flow + mail + memory.",
-      acceptance_criteria: [
-        "Planner responds",
-        "Implementer responds",
-        "Reviewer responds",
-        "Thread ends in DONE and writes bead"
-      ]
+      title: titleInput.value.trim(),
+      description: descInput.value.trim(),
+      acceptance_criteria: parseCriteria(criteriaInput.value)
     };
     const res = await fetchJson("/api/issue", {
       method: "POST",
@@ -138,17 +160,26 @@ async function submitDemoIssue() {
       body: JSON.stringify({ issue })
     });
     selectedThread = res.thread_id;
+    closeModal();
     await refreshAll();
   } catch (err) {
     alert("Failed to submit issue. Make sure orchestrator + agents are running.");
     console.error(err);
   } finally {
-    submitBtn.disabled = false;
-    submitBtn.textContent = "Submit demo issue";
+    modalSubmit.disabled = false;
+    modalSubmit.textContent = "Submit";
   }
 }
 
 refreshBtn.addEventListener("click", refreshAll);
-submitBtn.addEventListener("click", submitDemoIssue);
+newIssueBtn.addEventListener("click", openModal);
+modalClose.addEventListener("click", closeModal);
+modalCancel.addEventListener("click", closeModal);
+issueForm.addEventListener("submit", submitIssue);
+
+backdrop.addEventListener("click", (e) => {
+  if (e.target === backdrop) closeModal();
+});
+
 refreshAll();
 setInterval(refreshAll, 2500);
