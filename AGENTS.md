@@ -124,6 +124,7 @@ Source of truth: `schemas/workflow.schema.json`.
   - `HIVEFORGE_MCP_AGENT_SCOPE=model` (share one MCP agent per model)
   - `HIVEFORGE_MCP_SHARED_AGENT_IDS` (default `planner,implementer,reviewer,integrator`)
 - Local fallback for tests: set `HIVEFORGE_MAIL_BACKEND=filesystem`
+ - If `HIVEFORGE_MCP_PROJECT_KEY` is relative (e.g. `HiveForge-dev`), it resolves to `.hiveforge/projects/<name>`.
 
 ### 7.3 Codex (LLM Provider)
 

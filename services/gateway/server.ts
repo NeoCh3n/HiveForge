@@ -8,6 +8,8 @@ import { listInbox, send as mailSend } from "../mail/adapter.ts";
 import { DATA_ROOT, EVENT_LOG, MAIL_BACKEND, MAIL_ROOT, MCP_BASE_URL, MEMORY_ROOT, STATE_DIR } from "../config.ts";
 
 const PORT = parseInt(process.env.PORT ?? "8787", 10);
+const PORT_ENV = process.env.PORT;
+const MAX_PORT_RETRIES = 5;
 const MAIL_DIR = MAIL_ROOT;
 const MEMORY_FILE = join(MEMORY_ROOT, "beads.jsonl");
 const EVENTS_FILE = EVENT_LOG;
@@ -158,6 +160,8 @@ const server = createServer();
 
 async function start() {
   await ensureDirs();
+  let currentPort = PORT;
+  let retries = 0;
 
   server.on("request", async (req, res) => {
     const url = new URL(req.url || "/", "http://localhost");
@@ -223,8 +227,23 @@ async function start() {
     await serveStatic(path, res);
   });
 
-  server.listen(PORT, () => {
-    console.log(`HiveForge UI running at http://localhost:${PORT}`);
+  server.on("error", (err: any) => {
+    if (err?.code === "EADDRINUSE" && !PORT_ENV && retries < MAX_PORT_RETRIES) {
+      retries += 1;
+      const nextPort = currentPort + 1;
+      console.warn(`[gateway] port ${currentPort} in use; trying ${nextPort}`);
+      currentPort = nextPort;
+      server.listen(currentPort, () => {
+        console.log(`HiveForge UI running at http://localhost:${currentPort}`);
+      });
+      return;
+    }
+    console.error("Gateway failed to start:", err);
+    process.exit(1);
+  });
+
+  server.listen(currentPort, () => {
+    console.log(`HiveForge UI running at http://localhost:${currentPort}`);
   });
 }
 

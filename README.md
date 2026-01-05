@@ -146,6 +146,9 @@ export HIVEFORGE_MCP_AGENT_SCOPE=model
 export HIVEFORGE_MCP_SHARED_AGENT_IDS="planner,implementer,reviewer,integrator"
 ```
 
+If `HIVEFORGE_MCP_PROJECT_KEY` is set to a relative name (e.g. `HiveForge-dev`),
+HiveForge resolves it to `.hiveforge/projects/<name>` to satisfy MCP's absolute-path requirement.
+
 If you need the local filesystem mailbox for tests/offline:
 
 ```bash

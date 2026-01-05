@@ -19,6 +19,7 @@ async function handle(message: Message): Promise<void> {
     to: "orchestrator",
     type: "REVIEW",
     payload: {
+      status: "COMPLETED",
       blocking: false,
       summary: "Looks good for demo purposes.",
       comments: ["Stub reviewer approves by default."]

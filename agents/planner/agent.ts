@@ -13,6 +13,9 @@ async function handle(message: Message): Promise<void> {
   if (message.type !== "PLAN_REQUEST") return;
 
   const issue = message.payload.issue ?? {};
+  const acceptance_criteria = Array.isArray(issue.acceptance_criteria)
+    ? (issue.acceptance_criteria as string[])
+    : [];
   const plan: Message = {
     thread_id: message.thread_id,
     msg_id: randomUUID(),
@@ -20,6 +23,7 @@ async function handle(message: Message): Promise<void> {
     to: "orchestrator",
     type: "PLAN",
     payload: {
+      status: "COMPLETED",
       title: issue.title ?? "Untitled issue",
       steps: [
         "Understand requirements and acceptance criteria",
@@ -27,6 +31,7 @@ async function handle(message: Message): Promise<void> {
         "Add sanity tests",
         "Prepare for review"
       ],
+      acceptance_criteria,
       risks: ["This is a stub agent; logic is simplified"],
       tests: ["Run demo end-to-end"]
     },

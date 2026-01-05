@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { access, mkdir, readdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import {
@@ -15,7 +15,8 @@ import type { Message, MessageType } from "../../types/protocol.ts";
 
 const DEFAULT_SUBSCRIBE_INTERVAL_MS = 800;
 const AGENT_MAP_FILE = join(MAIL_ROOT, "agent-map.json");
-const ACK_DIR = join(MAIL_ROOT, "acks");
+const ACK_SCOPE = createHash("sha256").update(MCP_PROJECT_KEY).digest("hex").slice(0, 8);
+const ACK_DIR = join(MAIL_ROOT, "acks", ACK_SCOPE);
 const ACK_CACHE_LIMIT = 500;
 const SHARED_AGENT_IDS = new Set(MCP_SHARED_AGENT_IDS);
 
@@ -175,6 +176,7 @@ async function fsListInbox(agentId: string, limit = 50): Promise<Message[]> {
 }
 
 type AgentMap = {
+  projectKey?: string;
   internalToVendor: Record<string, string>;
   vendorToInternal: Record<string, string | string[]>;
   modelToVendor: Record<string, string>;
@@ -187,18 +189,26 @@ async function loadAgentMap(): Promise<AgentMap> {
   try {
     const raw = await readFile(AGENT_MAP_FILE, "utf-8");
     const parsed = JSON.parse(raw) as AgentMap;
+    const storedKey = parsed.projectKey;
+    const isLegacy = storedKey === undefined;
+    const defaultKey = process.cwd();
+    if ((storedKey && storedKey !== MCP_PROJECT_KEY) || (isLegacy && MCP_PROJECT_KEY !== defaultKey)) {
+      return { projectKey: MCP_PROJECT_KEY, internalToVendor: {}, vendorToInternal: {}, modelToVendor: {} };
+    }
     return {
+      projectKey: MCP_PROJECT_KEY,
       internalToVendor: parsed.internalToVendor ?? {},
       vendorToInternal: parsed.vendorToInternal ?? {},
       modelToVendor: parsed.modelToVendor ?? {}
     };
   } catch {
-    return { internalToVendor: {}, vendorToInternal: {}, modelToVendor: {} };
+    return { projectKey: MCP_PROJECT_KEY, internalToVendor: {}, vendorToInternal: {}, modelToVendor: {} };
   }
 }
 
 async function saveAgentMap(map: AgentMap): Promise<void> {
   await ensureDir(MAIL_ROOT);
+  map.projectKey = MCP_PROJECT_KEY;
   await writeFile(AGENT_MAP_FILE, JSON.stringify(map, null, 2), "utf-8");
 }
 
@@ -319,6 +329,7 @@ async function mcpCall<T>(name: string, args: Record<string, any>): Promise<T> {
 
 async function ensureProject(): Promise<void> {
   if (ensuredProject) return;
+  await ensureDir(MCP_PROJECT_KEY);
   await mcpCall("ensure_project", { human_key: MCP_PROJECT_KEY });
   ensuredProject = true;
 }

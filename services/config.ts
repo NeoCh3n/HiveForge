@@ -1,4 +1,4 @@
-import { join, resolve } from "node:path";
+import { isAbsolute, join, resolve } from "node:path";
 
 export const DATA_ROOT = resolve(process.env.HIVEFORGE_DATA_ROOT ?? ".hiveforge");
 
@@ -24,7 +24,12 @@ export const MAIL_BACKEND = (process.env.HIVEFORGE_MAIL_BACKEND ?? "mcp") as
 
 export const MCP_BASE_URL =
   process.env.HIVEFORGE_MCP_BASE_URL ?? "http://127.0.0.1:8765/mcp/";
-export const MCP_PROJECT_KEY = process.env.HIVEFORGE_MCP_PROJECT_KEY ?? process.cwd();
+const MCP_PROJECT_KEY_RAW = process.env.HIVEFORGE_MCP_PROJECT_KEY;
+export const MCP_PROJECT_KEY = MCP_PROJECT_KEY_RAW
+  ? isAbsolute(MCP_PROJECT_KEY_RAW)
+    ? MCP_PROJECT_KEY_RAW
+    : resolve(DATA_ROOT, "projects", MCP_PROJECT_KEY_RAW)
+  : process.cwd();
 export const MCP_PROGRAM = process.env.HIVEFORGE_MCP_PROGRAM ?? "hiveforge";
 
 export const CODEX_PROVIDER = process.env.HIVEFORGE_CODEX_PROVIDER ?? "openai";

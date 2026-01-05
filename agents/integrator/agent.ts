@@ -19,6 +19,7 @@ async function handle(message: Message): Promise<void> {
     to: "orchestrator",
     type: "MERGE_CONFIRMED",
     payload: {
+      status: "COMPLETED",
       merged: true,
       note: "Stub integrator merged changes."
     },

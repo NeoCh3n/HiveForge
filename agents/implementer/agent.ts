@@ -14,6 +14,8 @@ async function handle(message: Message): Promise<void> {
 
   const issue = message.payload.issue ?? {};
   const plan = message.payload.plan ?? {};
+  const iteration = message.payload.iteration === true;
+  const summary = `Implemented stub for "${issue.title ?? "unknown"}"`;
 
   const result: Message = {
     thread_id: message.thread_id,
@@ -22,13 +24,21 @@ async function handle(message: Message): Promise<void> {
     to: "orchestrator",
     type: "RESULT",
     payload: {
-      summary: `Implemented stub for "${issue.title ?? "unknown"}"`,
-      plan,
-      artifacts: ["demo-run"],
+      status: "COMPLETED",
+      summary,
+      changed_files: [],
       tests: ["not run (stub agent)"]
     },
     created_at: new Date().toISOString()
   };
+
+  if (iteration) {
+    result.payload.notes = ["Stub iteration: no changes applied."];
+  }
+
+  if (plan && Object.keys(plan).length) {
+    result.payload.plan = plan;
+  }
 
   await send(result);
   console.log(`[implementer] sent RESULT for ${message.thread_id}`);
