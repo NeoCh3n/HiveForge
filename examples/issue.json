@@ -1,0 +1,6 @@
+{
+  "thread_id": "issue-demo-1",
+  "title": "Demo: end-to-end workflow smoke test",
+  "description": "Run a full Issue → Plan → Execute → Review → Merge → Memory loop using local file-based mail + memory backends.",
+  "acceptance_criteria": ["Planner returns a plan", "Implementer returns a result", "Reviewer returns a review", "Thread ends in DONE", "A TaskBead is written to memory"]
+}

@@ -1,0 +1,9 @@
+[submodule "vendor/mcp_agent_mail"]
+	path = vendor/mcp_agent_mail
+	url = https://github.com/dicklesworthstone/mcp_agent_mail
+[submodule "vendor/vc"]
+	path = vendor/vc
+	url = https://github.com/steveyegge/vc
+[submodule "vendor/beads"]
+	path = vendor/beads
+	url = https://github.com/steveyegge/beads

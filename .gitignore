@@ -1,0 +1,9 @@
+.DS_Store
+.hiveforge/
+node_modules/
+dist/
+*.log
+*.tmp
+*.swp
+*.swo
+.env

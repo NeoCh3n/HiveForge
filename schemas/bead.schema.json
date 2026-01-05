@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "HiveForge Bead",
+  "type": "object",
+  "required": ["id", "type", "title", "content", "created_at"],
+  "properties": {
+    "id": { "type": "string" },
+    "type": {
+      "type": "string",
+      "enum": ["ProjectBead", "DecisionBead", "TaskBead"]
+    },
+    "title": { "type": "string" },
+    "content": { "type": "string" },
+    "thread_id": { "type": "string" },
+    "tags": { "type": "array", "items": { "type": "string" } },
+    "created_at": { "type": "string", "format": "date-time" },
+    "extra": { "type": "object", "additionalProperties": true }
+  },
+  "additionalProperties": false
+}

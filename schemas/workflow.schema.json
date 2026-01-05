@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "HiveForge Workflow State",
+  "type": "object",
+  "required": ["thread_id", "state", "updated_at", "history"],
+  "properties": {
+    "thread_id": { "type": "string" },
+    "state": {
+      "type": "string",
+      "enum": [
+        "ISSUE_RECEIVED",
+        "PLAN_REQUESTED",
+        "PLAN_RECEIVED",
+        "TASK_DISPATCHED",
+        "RESULT_RECEIVED",
+        "REVIEW_REQUESTED",
+        "REVIEW_RECEIVED",
+        "MERGE_REQUESTED",
+        "DONE",
+        "ITERATING",
+        "ERROR"
+      ]
+    },
+    "updated_at": { "type": "string", "format": "date-time" },
+    "history": { "type": "array", "items": { "type": "string" } },
+    "issue": { "type": "object" },
+    "plan": { "type": "object" },
+    "result": { "type": "object" },
+    "review": { "type": "object" },
+    "data": { "type": "object", "additionalProperties": true }
+  },
+  "additionalProperties": false
+}

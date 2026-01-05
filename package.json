@@ -1,0 +1,14 @@
+{
+  "name": "hiveforge",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "demo": "NODE_OPTIONS=--experimental-strip-types node services/orchestrator/cli.ts demo run --issue examples/issue.json",
+    "orchestrator": "NODE_OPTIONS=--experimental-strip-types node services/orchestrator/cli.ts orchestrator run",
+    "agent:planner": "NODE_OPTIONS=--experimental-strip-types node agents/planner/agent.ts",
+    "agent:implementer": "NODE_OPTIONS=--experimental-strip-types node agents/implementer/agent.ts",
+    "agent:reviewer": "NODE_OPTIONS=--experimental-strip-types node agents/reviewer/agent.ts",
+    "agent:integrator": "NODE_OPTIONS=--experimental-strip-types node agents/integrator/agent.ts",
+    "typecheck": "tsc -p tsconfig.json"
+  }
+}

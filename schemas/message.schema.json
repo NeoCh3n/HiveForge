@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "HiveForge Message",
+  "type": "object",
+  "required": ["thread_id", "msg_id", "from", "to", "type", "payload", "created_at"],
+  "properties": {
+    "thread_id": { "type": "string" },
+    "msg_id": { "type": "string" },
+    "from": { "type": "string" },
+    "to": { "type": "string" },
+    "type": {
+      "type": "string",
+      "enum": [
+        "ISSUE",
+        "PLAN_REQUEST",
+        "PLAN",
+        "TASK_REQUEST",
+        "RESULT",
+        "REVIEW_REQUEST",
+        "REVIEW",
+        "MERGE_REQUEST",
+        "MERGE_CONFIRMED",
+        "INFO"
+      ]
+    },
+    "priority": { "type": "string", "enum": ["low", "normal", "high"] },
+    "context_refs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "kind": { "type": "string" },
+          "id": { "type": "string" },
+          "path": { "type": "string" },
+          "note": { "type": "string" }
+        },
+        "required": ["kind"],
+        "additionalProperties": false
+      }
+    },
+    "acceptance_criteria": { "type": "array", "items": { "type": "string" } },
+    "payload": { "type": "object", "additionalProperties": true },
+    "created_at": { "type": "string", "format": "date-time" }
+  },
+  "additionalProperties": false
+}
