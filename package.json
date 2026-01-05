@@ -10,7 +10,18 @@
     "agent:reviewer": "NODE_OPTIONS=--experimental-strip-types node agents/reviewer/agent.ts",
     "agent:integrator": "NODE_OPTIONS=--experimental-strip-types node agents/integrator/agent.ts",
     "stack": "NODE_OPTIONS=--experimental-strip-types node services/run/stack.ts",
+    "stack:codex": "NODE_OPTIONS=--experimental-strip-types node services/run/codex-stack.ts",
+    "stack:codex-agents": "NODE_OPTIONS=--experimental-strip-types node services/run/codex-agents-stack.ts",
     "ui": "NODE_OPTIONS=--experimental-strip-types node services/gateway/server.ts",
+    "hf": "NODE_OPTIONS=--experimental-strip-types node services/hf/cli.ts",
+    "agent:planner:codex": "NODE_OPTIONS=--experimental-strip-types node agents/planner/codex-agent.ts",
+    "agent:implementer:codex": "NODE_OPTIONS=--experimental-strip-types node agents/implementer/codex-agent.ts",
+    "agent:reviewer:codex": "NODE_OPTIONS=--experimental-strip-types node agents/reviewer/codex-agent.ts",
+    "agent:integrator:codex": "NODE_OPTIONS=--experimental-strip-types node agents/integrator/codex-agent.ts",
+    "codex:planner": "codex -C . -c ask_for_approval=never -c model_reasoning_effort=high \"HiveForge Planner Agent. Read AGENTS.md and agents/planner/CODEX_PROMPT.md.\"",
+    "codex:implementer": "codex -C . -c ask_for_approval=never -c model_reasoning_effort=high \"HiveForge Implementer Agent. Read AGENTS.md and agents/implementer/CODEX_PROMPT.md.\"",
+    "codex:reviewer": "codex -C . -c ask_for_approval=never -c model_reasoning_effort=high \"HiveForge Reviewer Agent. Read AGENTS.md and agents/reviewer/CODEX_PROMPT.md.\"",
+    "codex:integrator": "codex -C . -c ask_for_approval=never -c model_reasoning_effort=high \"HiveForge Integrator Agent. Read AGENTS.md and agents/integrator/CODEX_PROMPT.md.\"",
     "test": "HIVEFORGE_DATA_ROOT=.hiveforge/test NODE_OPTIONS=--experimental-strip-types node --test tests/*.test.ts",
     "typecheck": "tsc -p tsconfig.json"
   }

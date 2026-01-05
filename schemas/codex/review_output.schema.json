@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "HiveForge Reviewer Output",
+  "type": "object",
+  "required": ["blocking", "summary", "must_fix", "suggestions", "security_notes", "verification"],
+  "properties": {
+    "blocking": { "type": "boolean" },
+    "summary": { "type": "string" },
+    "must_fix": { "type": "array", "items": { "type": "string" } },
+    "suggestions": { "type": "array", "items": { "type": "string" } },
+    "security_notes": { "type": "array", "items": { "type": "string" } },
+    "verification": { "type": "array", "items": { "type": "string" } }
+  },
+  "additionalProperties": false
+}

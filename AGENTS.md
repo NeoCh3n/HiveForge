@@ -116,11 +116,40 @@ Source of truth: `schemas/workflow.schema.json`.
 ### 7.2 Commands
 - Demo (orchestrator + stub agents): `npm run demo`
 - All-in-one (orchestrator + stubs + UI): `npm run stack`
+- Orchestrator + UI (no stub agents, for multi-Codex): `npm run stack:codex`
+- Orchestrator + Codex-backed agents + UI: `npm run stack:codex-agents`
 - UI only: `npm run ui` (http://localhost:8787)
 - Orchestrator only: `npm run orchestrator`
 - Individual agents: `npm run agent:planner` (and `implementer/reviewer/integrator`)
+- Codex-backed agent processes: `npm run agent:<role>:codex`
+- Helper CLI (mail/memory): `npm run hf -- <...>`
 - Tests: `npm test`
 - Type check: `npm run typecheck`
+
+### 7.3 Multi‑Codex Mode (One Codex per Agent)
+
+Run orchestrator + UI, then start 4 separate Codex sessions (one per role) to read Mail and reply:
+
+1) Start the stack (no stub agents):
+- `npm run stack:codex`
+
+2) In 4 other terminals:
+- `npm run codex:planner`
+- `npm run codex:implementer`
+- `npm run codex:reviewer`
+- `npm run codex:integrator`
+
+3) In each Codex session, use `hf` to poll/reply/ack (examples):
+- `npm run hf -- mail poll planner`
+- `npm run hf -- mail reply planner <msg_id> --type PLAN --payload-file plan.json --ack`
+
+### 7.4 Codex‑Backed Agents (New Codex per Task)
+
+If you want each subagent’s LLM work to be executed by a fresh `codex exec` run:
+
+- Start orchestrator + codex-backed agents + UI: `npm run stack:codex-agents`
+- Each agent process polls Mail and spawns `codex exec` to produce a schema-constrained JSON payload.
+- Codex run artifacts are written under `.hiveforge/codex/` (gitignored).
 
 ## 8. Roadmap to a “Real Work System”
 

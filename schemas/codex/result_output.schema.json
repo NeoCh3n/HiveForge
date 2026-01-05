@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "HiveForge Implementer Output",
+  "type": "object",
+  "required": ["status", "summary", "changed_files", "tests"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["STARTED", "IN_PROGRESS", "BLOCKED", "COMPLETED"]
+    },
+    "summary": { "type": "string" },
+    "changed_files": { "type": "array", "items": { "type": "string" } },
+    "tests": { "type": "array", "items": { "type": "string" } },
+    "notes": { "type": "array", "items": { "type": "string" } },
+    "blockers": { "type": "array", "items": { "type": "string" } }
+  },
+  "additionalProperties": false
+}

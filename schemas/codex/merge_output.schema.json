@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "HiveForge Integrator Output",
+  "type": "object",
+  "required": ["merged", "notes", "tests"],
+  "properties": {
+    "merged": { "type": "boolean" },
+    "notes": { "type": "array", "items": { "type": "string" } },
+    "tests": { "type": "array", "items": { "type": "string" } }
+  },
+  "additionalProperties": false
+}

@@ -32,6 +32,46 @@ One command to start orchestrator + 4 stub agents and submit a sample issue:
 npm run demo
 ```
 
+## Multi-Codex mode (one Codex per agent)
+
+Run orchestrator + UI, then open 4 separate Codex sessions (planner/implementer/reviewer/integrator) to reply over Mail.
+
+Start the stack (no stub agents):
+
+```bash
+npm run stack:codex
+```
+
+In 4 other terminals:
+
+```bash
+npm run codex:planner
+npm run codex:implementer
+npm run codex:reviewer
+npm run codex:integrator
+```
+
+Inside each Codex session, use the helper CLI to poll/reply/ack:
+
+```bash
+npm run hf -- mail poll planner
+npm run hf -- mail reply planner <msg_id> --type PLAN --payload-file plan.json --ack
+```
+
+## Codex-backed agents (automatic “new Codex per task”)
+
+This starts long-running agent processes that, on each incoming Mail message, spawn a fresh `codex exec` run to generate the reply payload.
+
+```bash
+npm run stack:codex-agents
+```
+
+Then submit issues via UI (http://localhost:8787) or CLI:
+
+```bash
+node services/orchestrator/cli.ts issue submit examples/issue.json
+```
+
 Or run in five shells:
 
 ```bash
