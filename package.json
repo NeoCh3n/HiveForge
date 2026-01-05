@@ -11,6 +11,7 @@
     "agent:integrator": "NODE_OPTIONS=--experimental-strip-types node agents/integrator/agent.ts",
     "stack": "NODE_OPTIONS=--experimental-strip-types node services/run/stack.ts",
     "ui": "NODE_OPTIONS=--experimental-strip-types node services/gateway/server.ts",
+    "test": "HIVEFORGE_DATA_ROOT=.hiveforge/test NODE_OPTIONS=--experimental-strip-types node --test tests/*.test.ts",
     "typecheck": "tsc -p tsconfig.json"
   }
 }

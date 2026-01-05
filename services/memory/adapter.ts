@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { access, mkdir, readFile, writeFile, appendFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
+import { MEMORY_ROOT } from "../config.ts";
 import type { Bead } from "../../types/protocol.ts";
 
-const MEMORY_ROOT = resolve(".hiveforge/memory");
 const BEADS_FILE = join(MEMORY_ROOT, "beads.jsonl");
 const LINKS_FILE = join(MEMORY_ROOT, "links.json");
 

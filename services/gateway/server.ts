@@ -5,13 +5,12 @@ import { join, resolve, extname } from "node:path";
 import { URL } from "node:url";
 import { randomUUID } from "node:crypto";
 import { send as mailSend } from "../mail/adapter.ts";
+import { DATA_ROOT, MAIL_ROOT, MEMORY_ROOT, STATE_DIR, EVENT_LOG } from "../config.ts";
 
 const PORT = parseInt(process.env.PORT ?? "8787", 10);
-const DATA_ROOT = resolve(".hiveforge");
-const STATE_DIR = join(DATA_ROOT, "state");
-const MAIL_DIR = join(DATA_ROOT, "mail");
-const MEMORY_FILE = join(DATA_ROOT, "memory", "beads.jsonl");
-const EVENTS_FILE = join(DATA_ROOT, "events.log");
+const MAIL_DIR = MAIL_ROOT;
+const MEMORY_FILE = join(MEMORY_ROOT, "beads.jsonl");
+const EVENTS_FILE = EVENT_LOG;
 const PUBLIC_DIR = resolve("services/gateway/public");
 
 async function safeJson(path: string) {
@@ -61,15 +60,24 @@ async function collectAllMail() {
 }
 
 async function listMessages(agent: string) {
-  const inbox = join(MAIL_DIR, agent, "inbox");
   try {
-    const files = await readdir(inbox);
+    const inbox = join(MAIL_DIR, agent, "inbox");
+    const processing = join(MAIL_DIR, agent, "processing");
+    const dirs = [inbox, processing];
     const items = [];
-    for (const file of files) {
-      if (!file.endsWith(".json")) continue;
-      const full = join(inbox, file);
-      const payload = await safeJson(full);
-      if (payload) items.push(payload);
+    for (const dir of dirs) {
+      let files: string[] = [];
+      try {
+        files = await readdir(dir);
+      } catch {
+        continue;
+      }
+      for (const file of files) {
+        if (!file.endsWith(".json")) continue;
+        const full = join(dir, file);
+        const payload = await safeJson(full);
+        if (payload) items.push(payload);
+      }
     }
     items.sort((a, b) => (a.created_at || "").localeCompare(b.created_at || ""));
     return items;
