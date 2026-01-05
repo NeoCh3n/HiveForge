@@ -1,38 +1,38 @@
 # HiveForge
 
-统一工程化“多 Agent 软件工厂”脚手架：
+A unified “multi-agent software factory” scaffold that combines:
 
-- **Flow（vc 思路）**：`services/orchestrator` 把协作固化为状态机（Issue → Plan → Execute → Review → Iterate → Done → Memory）。
-- **Mail（mcp_agent_mail 能力对齐）**：`services/mail` 提供统一 `send/poll/ack/subscribe` 接口；MVP 默认用文件系统 inbox/outbox。
-- **Memory（beads 能力对齐）**：`services/memory` 提供统一 `remember/recall/link/summarize` 接口；MVP 默认用本地 JSON beads 存储。
+- **Flow (vc-inspired):** `services/orchestrator` codifies collaboration as a state machine (Issue → Plan → Execute → Review → Iterate → Done → Memory).
+- **Mail (aligned with mcp_agent_mail):** `services/mail` exposes `send/poll/ack/subscribe`; the MVP uses a local filesystem inbox/outbox.
+- **Memory (aligned with beads):** `services/memory` exposes `remember/recall/link/summarize`; the MVP stores JSONL beads locally.
 
-上游仓库以 submodule 引入到 `vendor/`，避免直接改动，便于跟 upstream 同步：
+Upstreams are pulled in as submodules under `vendor/` (do not modify them directly):
 
 - `vendor/mcp_agent_mail`
 - `vendor/beads`
 - `vendor/vc`
 
-## 目录速览
+## Layout
 
-- `services/`: HiveForge 稳定接口
-  - `mail/adapter.ts`: 统一 Mail API（MVP: 本地文件 inbox/outbox）
-  - `memory/adapter.ts`: 统一 Memory API（MVP: JSONL beads）
-  - `orchestrator/cli.ts`: 状态机 + CLI（issue submit / orchestrator run / demo run）
-- `agents/`: 4 个 stub（planner / implementer / reviewer / integrator）
+- `services/`
+  - `mail/adapter.ts`: unified Mail API (MVP: filesystem inbox/outbox)
+  - `memory/adapter.ts`: unified Memory API (MVP: JSONL beads)
+  - `orchestrator/cli.ts`: state machine + CLI (`issue submit` / `orchestrator run` / `demo run`)
+- `agents/`: four stubs (planner / implementer / reviewer / integrator)
 - `schemas/`: Message / Workflow / Bead JSON Schema
-- `types/`: TypeScript 协议定义（含 Node 轻量 shims）
-- `examples/issue.json`: 演示用 issue
-- `vendor/*`: upstream submodule（请勿直接修改）
+- `types/`: TypeScript protocol definitions + lightweight Node shims
+- `examples/issue.json`: sample issue for the demo
+- `vendor/*`: upstream submodules
 
-## Quickstart（本地多进程 Demo）
+## Quickstart (local multi-process demo)
 
-一条命令启动 orchestrator + 4 个 agent stub，并提交一个示例 issue：
+One command to start orchestrator + 4 stub agents and submit a sample issue:
 
 ```bash
 npm run demo
 ```
 
-或拆开跑（5 个终端）：
+Or run in five shells:
 
 ```bash
 node services/orchestrator/cli.ts orchestrator run
@@ -44,47 +44,47 @@ node agents/integrator/agent.ts
 node services/orchestrator/cli.ts issue submit examples/issue.json
 ```
 
-运行产物默认落在 `.hiveforge/`（消息、线程状态、事件日志、记忆 beads）。
+Artifacts land in `.hiveforge/` (messages, state, event log, beads).
 
-## 开发命令
+## Dev commands
 
-- `npm run orchestrator`：只跑 orchestrator（需另开 4 个 agent 进程）
-- `npm run agent:<role>`：单独跑某个 stub agent
-- `npm run typecheck`：`tsc -p tsconfig.json`（仅类型检查，不输出 JS）
+- `npm run orchestrator`: run orchestrator only (start agents separately)
+- `npm run agent:<role>`: run a specific stub agent
+- `npm run typecheck`: `tsc -p tsconfig.json` (type-check only)
 
-Node 24 的 `--experimental-strip-types` 会直接执行 `.ts` 文件，无需转译。
+Node 24’s `--experimental-strip-types` executes `.ts` directly; no build step required.
 
-## 协议摘要
+## Protocols (summary)
 
-- Message（见 `schemas/message.schema.json`）：
+- Message (`schemas/message.schema.json`):
   - `type`: ISSUE | PLAN_REQUEST | PLAN | TASK_REQUEST | RESULT | REVIEW_REQUEST | REVIEW | MERGE_REQUEST | MERGE_CONFIRMED | INFO
-  - `context_refs`、`acceptance_criteria` 用于上下文与验收传递
-- Workflow（见 `schemas/workflow.schema.json`）：状态机轨迹（ISSUE_RECEIVED → … → DONE/ITERATING/ERROR）
-- Bead（见 `schemas/bead.schema.json`）：ProjectBead / DecisionBead / TaskBead
+  - `context_refs`, `acceptance_criteria` carry context and acceptance gates
+- Workflow (`schemas/workflow.schema.json`): states ISSUE_RECEIVED → … → DONE / ITERATING / ERROR
+- Bead (`schemas/bead.schema.json`): ProjectBead / DecisionBead / TaskBead
 
-## 与 upstream 对齐的路线图
+## Roadmap to real services
 
-MVP 先用文件系统适配器跑通端到端，后续可以替换为真实服务：
+Start with filesystem adapters, then swap in real backends without touching orchestrator logic:
 
-1) Mail：在 `services/mail/adapter.ts` 内接入 `vendor/mcp_agent_mail` 的 HTTP/MCP API（保留相同接口签名）。
-2) Memory：在 `services/memory/adapter.ts` 内改为调用 `vendor/beads`（CLI 或库），仍返回/存储统一 Bead 结构。
-3) Workflow：`services/orchestrator` 逻辑保持只依赖 mail+memory 适配器，便于替换实现。
+1) Mail: implement `services/mail/adapter.ts` using `vendor/mcp_agent_mail` HTTP/MCP API while keeping the same interface.
+2) Memory: implement `services/memory/adapter.ts` against `vendor/beads` (CLI or lib) while returning the same bead shape.
+3) Workflow: keep `services/orchestrator` depending only on mail+memory adapters to stay swappable.
 
-## Submodule 提示
+## Submodule tips
 
 ```bash
-git submodule update --init --recursive    # 初始化
-git submodule update --remote vendor/beads # 跟踪 upstream 更新
+git submodule update --init --recursive    # initialize
+git submodule update --remote vendor/beads # track upstream
 ```
 
-## 清理与调试
+## Cleanup & debug
 
-- 重置演示数据：`rm -rf .hiveforge/`
-- 事件日志：`.hiveforge/events.log`
-- 每个线程的状态：`.hiveforge/state/<thread>.json`
-- 内存存储：`.hiveforge/memory/beads.jsonl`
+- Reset demo data: `rm -rf .hiveforge/`
+- Event log: `.hiveforge/events.log`
+- Per-thread state: `.hiveforge/state/<thread>.json`
+- Memory store: `.hiveforge/memory/beads.jsonl`
 
-## TypeScript/Node 版本
+## TypeScript / Node
 
-- 运行时：Node >= 20（推荐 24），需要 `--experimental-strip-types`。
-- `tsc`：使用本地全局 `tsc`（脚手架不内置依赖），必要时自行 `npm i -D typescript @types/node`。
+- Runtime: Node ≥ 20 (Node 24 recommended) with `--experimental-strip-types`.
+- Type checking: uses global `tsc`; install locally if desired: `npm i -D typescript @types/node`.
