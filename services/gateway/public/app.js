@@ -144,11 +144,46 @@ function renderBeads() {
 }
 
 function renderMail() {
-  if (dashboard.mail_ui_url) {
-    if (mailEl.dataset.mailUiUrl === dashboard.mail_ui_url) return;
-    mailEl.dataset.mailUiUrl = dashboard.mail_ui_url;
-    mailEl.innerHTML = "";
+  mailEl.innerHTML = "";
 
+  // If MCP backend with native integration, render unified inbox
+  if (Array.isArray(dashboard.mail)) {
+    mailEl.innerHTML = `<div class="mail-section">
+      <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+        <h3 style="margin: 0;">Unified Inbox</h3>
+        <span class="badge">${dashboard.mail.length} messages</span>
+      </div>
+      <div class="messages-list">` +
+      (dashboard.mail.length > 0 ? dashboard.mail.map(m => `
+        <div class="message-item">
+          <div class="message-header">
+            <span class="sender">${m.sender}</span>
+            <i data-lucide="arrow-right" style="width: 12px; height: 12px; color: var(--muted);"></i>
+            <span class="recipients">${m.recipients || 'Multiple recipients'}</span>
+            <span class="timestamp">${m.created_relative}</span>
+          </div>
+          <div class="message-badges">
+            <span class="badge project">${m.project_name}</span>
+            ${m.importance === 'urgent' ? '<span class="badge urgent">Urgent</span>' : ''}
+            ${m.importance === 'high' ? '<span class="badge high">High</span>' : ''}
+            ${m.thread_id ? '<span class="badge thread">Thread</span>' : ''}
+          </div>
+          <div class="message-subject">${m.subject}</div>
+          <div class="message-excerpt">${m.excerpt}</div>
+        </div>`).join("") : '<div class="empty">📭 No messages in unified inbox</div>') +
+      `</div>
+    </div>`;
+
+    // Load Lucide icons
+    if (typeof lucide !== 'undefined') {
+      lucide.createIcons();
+    }
+
+    return;
+  }
+
+  // Legacy iframe for external UI
+  if (dashboard.mail_ui_url) {
     const link = document.createElement("a");
     link.className = "mail-link";
     link.href = dashboard.mail_ui_url;
@@ -166,9 +201,7 @@ function renderMail() {
     return;
   }
 
-  mailEl.dataset.mailUiUrl = "";
-  mailEl.innerHTML = "";
-
+  // Fallback: per-agent inboxes
   const agents = ["orchestrator", "planner", "implementer", "reviewer", "integrator"];
   agents.forEach((agent) => {
     const items = (dashboard.mail && dashboard.mail[agent]) || [];
@@ -180,13 +213,13 @@ function renderMail() {
         ? items
             .map(
               (m) =>
-                `${m.created_at ?? ""} [${m.type}] ${m.thread_id}\n${JSON.stringify(
+                `${m.created_at ?? ""} [${m.type}] ${m.thread_id}n${JSON.stringify(
                   m.payload ?? {},
                   null,
                   2
                 )}`
             )
-            .join("\n\n")
+            .join("nn")
         : "Inbox empty");
     mailEl.appendChild(box);
   });
