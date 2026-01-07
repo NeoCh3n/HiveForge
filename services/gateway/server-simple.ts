@@ -60,8 +60,8 @@ server.on("request", async (req, res) => {
 
   // Serve static files
   try {
-    if (path === "/") path = "/index.html";
-    const filePath = join(PUBLIC_DIR, path);
+    const normalizedPath = path === "/" ? "index.html" : path.startsWith("/") ? path.slice(1) : path;
+    const filePath = join(PUBLIC_DIR, normalizedPath);
     const content = await readFile(filePath);
     const ext = path.split('.').pop();
     const mime = ext === 'html' ? 'text/html' :
