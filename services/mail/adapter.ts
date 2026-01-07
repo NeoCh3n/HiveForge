@@ -60,6 +60,16 @@ async function processingDir(agentId: string): Promise<string> {
 }
 
 function normalizeMessage(message: Partial<Message>): Message {
+  // Basic security validation
+  if (message.payload && typeof message.payload === 'object') {
+    // Sanitize payload - remove any potentially dangerous keys
+    const sanitized = { ...message.payload };
+    delete sanitized.__proto__;
+    delete sanitized.constructor;
+    delete sanitized.prototype;
+    message.payload = sanitized;
+  }
+
   return {
     thread_id: message.thread_id ?? "unknown-thread",
     msg_id: message.msg_id ?? randomUUID(),
@@ -304,27 +314,49 @@ function unwrapMcpResult<T>(result: unknown): T {
   return result as T;
 }
 
-async function mcpCall<T>(name: string, args: Record<string, any>): Promise<T> {
-  const res = await fetch(MCP_BASE_URL, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      jsonrpc: "2.0",
-      id: randomUUID(),
-      method: "tools/call",
-      params: { name, arguments: args }
-    })
-  });
+async function mcpCall<T>(name: string, args: Record<string, any>, retries = 3): Promise<T> {
+  let lastError: Error;
 
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`mcp_agent_mail ${name} failed: ${res.status} ${text}`);
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+
+      const res = await fetch(MCP_BASE_URL, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: randomUUID(),
+          method: "tools/call",
+          params: { name, arguments: args }
+        }),
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`mcp_agent_mail ${name} failed: ${res.status} ${text}`);
+      }
+
+      const data = (await res.json()) as { result?: unknown; error?: { message: string } };
+      if (data.error) throw new Error(data.error.message);
+      if (!data.result) throw new Error(`mcp_agent_mail ${name} returned empty result`);
+      return unwrapMcpResult<T>(data.result);
+    } catch (error) {
+      lastError = error as Error;
+      if (attempt < retries && (error.name === 'AbortError' || error.message.includes('fetch'))) {
+        // Retry on timeout or network errors
+        await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
+        continue;
+      }
+      break;
+    }
   }
 
-  const data = (await res.json()) as { result?: unknown; error?: { message: string } };
-  if (data.error) throw new Error(data.error.message);
-  if (!data.result) throw new Error(`mcp_agent_mail ${name} returned empty result`);
-  return unwrapMcpResult<T>(data.result);
+  throw lastError;
 }
 
 async function ensureProject(): Promise<void> {

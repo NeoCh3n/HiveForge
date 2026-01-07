@@ -16,8 +16,13 @@ const TYPE_MAP: Record<string, string> = {
 };
 
 async function runBd(args: string[]): Promise<string> {
-  const { stdout } = await execFileAsync(BD_PATH, args, { cwd: process.cwd() });
-  return stdout.trim();
+  try {
+    const { stdout } = await execFileAsync(BD_PATH, args, { cwd: process.cwd(), timeout: 10000 });
+    return stdout.trim();
+  } catch (error) {
+    console.error("[memory] bd command failed:", error);
+    throw new Error(`Beads operation failed: ${error.message}`);
+  }
 }
 
 async function runBdJson(args: string[]): Promise<any> {

@@ -167,6 +167,21 @@ async function start() {
     const url = new URL(req.url || "/", "http://localhost");
     const path = url.pathname;
 
+    // Health check
+    if (path === "/health") {
+      const health = {
+        status: "ok",
+        timestamp: new Date().toISOString(),
+        services: {
+          mail: MAIL_BACKEND,
+          memory: "beads",
+          orchestrator: "active"
+        }
+      };
+      json(res, 200, health);
+      return;
+    }
+
     // Dashboard bundle: states + beads + mail + events
     if (path === "/api/dashboard") {
       const [states, beads, mail, events] = await Promise.all([
