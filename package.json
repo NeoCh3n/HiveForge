@@ -24,5 +24,8 @@
     "codex:integrator": "codex -C . -c ask_for_approval=never -c model_reasoning_effort=high \"HiveForge Integrator Agent. Read AGENTS.md and agents/integrator/CODEX_PROMPT.md.\"",
     "test": "HIVEFORGE_MAIL_BACKEND=filesystem HIVEFORGE_DATA_ROOT=.hiveforge/test NODE_OPTIONS=--experimental-strip-types node --test tests/*.test.ts",
     "typecheck": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "beads-ui": "^0.9.1"
   }
 }

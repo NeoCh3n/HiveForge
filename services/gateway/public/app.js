@@ -129,22 +129,18 @@ function renderWorkflowVisual(state) {
 }
 
 function renderBeads() {
-  if (!selectedThread) {
-    beadsEl.innerHTML = `<div class="muted">Select a thread.</div>`;
-    return;
-  }
-  const beads = (dashboard.beads || []).filter((b) => b.thread_id === selectedThread);
-  if (!beads.length) {
-    beadsEl.innerHTML = `<div class="muted">No beads for this thread.</div>`;
-    return;
-  }
-  beadsEl.innerHTML = "";
-  beads.forEach((b) => {
-    const item = document.createElement("div");
-    item.className = "mono";
-    item.innerHTML = `<span class="badge">${b.type}</span> ${b.title}<br/><span class="muted">${b.created_at}</span><br/>${b.content}`;
-    beadsEl.appendChild(item);
-  });
+  // Harmonious integration: Use beads-ui kanban interface as component
+  const beadsUiUrl = 'http://localhost:3000'; // beads-ui default port
+
+  beadsEl.innerHTML = `
+    <div style="padding: 10px;">
+      <div style="margin-bottom: 10px; font-weight: 600;">Beads Kanban Interface</div>
+      <div style="margin-bottom: 10px; font-size: 12px; color: var(--muted);">
+        Interactive issue management - Start with: <code>npm run beads-ui</code>
+      </div>
+      <iframe src="${beadsUiUrl}" style="width: 100%; height: 400px; border: 1px solid var(--border); border-radius: 10px;" title="Beads UI"></iframe>
+    </div>
+  `;
 }
 
 function renderMail() {
