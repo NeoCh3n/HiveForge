@@ -64,9 +64,10 @@ server.on("request", async (req, res) => {
     const filePath = join(PUBLIC_DIR, normalizedPath);
     const content = await readFile(filePath);
     const ext = path.split('.').pop();
-    const mime = ext === 'html' ? 'text/html' :
-                 ext === 'js' ? 'application/javascript' :
-                 ext === 'css' ? 'text/css' : 'text/plain';
+    const mime = ext === 'html' ? 'text/html; charset=utf-8' :
+                 ext === 'js' ? 'application/javascript; charset=utf-8' :
+                 ext === 'css' ? 'text/css; charset=utf-8' :
+                 ext === 'json' ? 'application/json; charset=utf-8' : 'text/plain; charset=utf-8';
     res.writeHead(200, { "Content-Type": mime });
     res.end(content);
   } catch {
