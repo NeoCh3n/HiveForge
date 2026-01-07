@@ -1,5 +1,6 @@
 const threadsEl = document.getElementById("threads");
 const stateEl = document.getElementById("state-view");
+const workflowVisualEl = document.getElementById("workflow-visual");
 const threadTitleEl = document.getElementById("thread-title");
 const beadsEl = document.getElementById("beads");
 const mailEl = document.getElementById("mail");
@@ -7,6 +8,12 @@ const eventsEl = document.getElementById("events");
 const latestEventEl = document.getElementById("latest-event");
 const refreshBtn = document.getElementById("refresh");
 const newIssueBtn = document.getElementById("new-issue");
+const toggleJsonBtn = document.getElementById("toggle-json");
+const threadSearchEl = document.getElementById("thread-search");
+const autoRefreshBtn = document.getElementById("auto-refresh");
+const healthStatusEl = document.getElementById("health-status");
+const statusDotEl = healthStatusEl.querySelector(".status-dot");
+const statusTextEl = healthStatusEl.querySelector(".status-text");
 
 const backdrop = document.getElementById("modal-backdrop");
 const modalClose = document.getElementById("modal-close");
@@ -19,6 +26,23 @@ const criteriaInput = document.getElementById("issue-criteria");
 
 let dashboard = { states: [], beads: [], mail: {}, events: [] };
 let selectedThread = null;
+let autoRefreshInterval = null;
+let isAutoRefreshEnabled = true;
+let threadSearchTerm = "";
+
+const WORKFLOW_STEPS = [
+  { key: "ISSUE_RECEIVED", label: "Issue Received", icon: "📝" },
+  { key: "PLAN_REQUESTED", label: "Planning", icon: "🤔" },
+  { key: "PLAN_RECEIVED", label: "Plan Ready", icon: "📋" },
+  { key: "TASK_DISPATCHED", label: "Task Started", icon: "⚡" },
+  { key: "RESULT_RECEIVED", label: "Implementation Done", icon: "✅" },
+  { key: "REVIEW_REQUESTED", label: "Review Started", icon: "🔍" },
+  { key: "REVIEW_RECEIVED", label: "Review Complete", icon: "👁️" },
+  { key: "APPROVAL_REQUESTED", label: "Approval Pending", icon: "⏳" },
+  { key: "APPROVAL_RECEIVED", label: "Approved", icon: "👍" },
+  { key: "MERGE_REQUESTED", label: "Merge Requested", icon: "🔀" },
+  { key: "DONE", label: "Completed", icon: "🎉" }
+];
 
 async function fetchJson(url, opts) {
   const res = await fetch(url, opts);
@@ -28,23 +52,34 @@ async function fetchJson(url, opts) {
 
 function renderThreads() {
   threadsEl.innerHTML = "";
-  if (!dashboard.states.length) {
-    threadsEl.innerHTML = `<div class="muted">No threads yet. Submit an issue.</div>`;
+  const filteredStates = dashboard.states.filter(t =>
+    !threadSearchTerm ||
+    t.thread_id.toLowerCase().includes(threadSearchTerm.toLowerCase()) ||
+    t.state.toLowerCase().includes(threadSearchTerm.toLowerCase())
+  );
+
+  if (!filteredStates.length) {
+    threadsEl.innerHTML = `<div class="muted">${dashboard.states.length ? 'No threads match search.' : 'No threads yet. Submit an issue.'}</div>`;
     return;
   }
-  dashboard.states.forEach((t) => {
+
+  filteredStates.forEach((t) => {
     const div = document.createElement("div");
     div.className = `thread ${selectedThread === t.thread_id ? "active" : ""}`;
     div.onclick = () => {
       selectedThread = t.thread_id;
       renderThreads();
-      renderState(t);
+      renderState(dashboard.states.find(s => s.thread_id === selectedThread));
       renderBeads();
       renderMail();
     };
+
+    const stateStep = WORKFLOW_STEPS.find(s => s.key === t.state);
+    const stateLabel = stateStep ? stateStep.label : t.state;
+
     div.innerHTML = `
       <div class="thread-id">${t.thread_id}</div>
-      <div class="thread-state">${t.state}</div>
+      <div class="thread-state">${stateLabel}</div>
       <div class="thread-time">${t.updated_at ?? ""}</div>
     `;
     threadsEl.appendChild(div);
@@ -54,11 +89,43 @@ function renderThreads() {
 function renderState(state) {
   if (!state) {
     threadTitleEl.textContent = "Select a thread";
+    workflowVisualEl.innerHTML = "";
     stateEl.textContent = "";
     return;
   }
   threadTitleEl.textContent = state.thread_id;
+  renderWorkflowVisual(state);
   stateEl.textContent = JSON.stringify(state, null, 2);
+}
+
+function renderWorkflowVisual(state) {
+  workflowVisualEl.innerHTML = "";
+  const currentStepIndex = WORKFLOW_STEPS.findIndex(step => step.key === state.state);
+
+  WORKFLOW_STEPS.forEach((step, index) => {
+    const stepEl = document.createElement("div");
+    stepEl.className = "workflow-step";
+
+    let statusClass = "pending";
+    if (index < currentStepIndex) {
+      statusClass = "completed";
+    } else if (index === currentStepIndex) {
+      statusClass = "current";
+    }
+    stepEl.classList.add(statusClass);
+
+    const history = state.history || [];
+    const stepHistory = history.find(h => h.includes(` -> ${step.key}`));
+    const time = stepHistory ? stepHistory.split(' ')[0] : '';
+
+    stepEl.innerHTML = `
+      <div class="step-icon ${statusClass}">${step.icon}</div>
+      <div class="step-label">${step.label}</div>
+      ${time ? `<div class="step-time">${time}</div>` : ''}
+    `;
+
+    workflowVisualEl.appendChild(stepEl);
+  });
 }
 
 function renderBeads() {
@@ -163,7 +230,23 @@ function renderEvents() {
   });
 }
 
+async function checkHealth() {
+  try {
+    const health = await fetchJson("/health");
+    statusDotEl.className = "status-dot healthy";
+    statusTextEl.textContent = `Services OK (${health.services.mail}, ${health.services.memory}, ${health.services.vc})`;
+  } catch (err) {
+    statusDotEl.className = "status-dot error";
+    statusTextEl.textContent = "Services unavailable";
+    console.error("Health check failed:", err);
+  }
+}
+
 async function refreshAll() {
+  const originalText = refreshBtn.textContent;
+  refreshBtn.textContent = "Loading...";
+  refreshBtn.disabled = true;
+
   try {
     const data = await fetchJson("/api/dashboard");
     dashboard = data.data || { states: [], beads: [], mail: {}, events: [] };
@@ -175,9 +258,15 @@ async function refreshAll() {
     renderBeads();
     renderMail();
     renderEvents();
+    checkHealth();
   } catch (err) {
-    threadsEl.innerHTML = `<div class="muted">Failed to load dashboard.</div>`;
+    threadsEl.innerHTML = `<div class="muted">Failed to load dashboard. Check if services are running.</div>`;
+    statusDotEl.className = "status-dot error";
+    statusTextEl.textContent = "Connection failed";
     console.error(err);
+  } finally {
+    refreshBtn.textContent = originalText;
+    refreshBtn.disabled = false;
   }
 }
 
@@ -216,10 +305,13 @@ async function submitIssue(event) {
     selectedThread = res.thread_id;
     closeModal();
     await refreshAll();
-  } catch (err) {
-    alert("Failed to submit issue. Make sure orchestrator + agents are running.");
-    console.error(err);
-  } finally {
+   } catch (err) {
+     const errorMsg = err.message.includes("fetch") ?
+       "Network error. Check if HiveForge services are running." :
+       "Failed to submit issue. Please try again.";
+     alert(errorMsg);
+     console.error(err);
+   } finally {
     modalSubmit.disabled = false;
     modalSubmit.textContent = "Submit";
   }
@@ -227,6 +319,26 @@ async function submitIssue(event) {
 
 refreshBtn.addEventListener("click", refreshAll);
 newIssueBtn.addEventListener("click", openModal);
+toggleJsonBtn.addEventListener("click", () => {
+  const isVisible = stateEl.style.display !== "none";
+  stateEl.style.display = isVisible ? "none" : "block";
+  toggleJsonBtn.textContent = isVisible ? "Show JSON" : "Hide JSON";
+});
+threadSearchEl.addEventListener("input", (e) => {
+  threadSearchTerm = e.target.value.trim();
+  renderThreads();
+});
+autoRefreshBtn.addEventListener("click", () => {
+  isAutoRefreshEnabled = !isAutoRefreshEnabled;
+  autoRefreshBtn.textContent = isAutoRefreshEnabled ? "Auto ✓" : "Auto ✗";
+  autoRefreshBtn.dataset.active = isAutoRefreshEnabled.toString();
+
+  if (isAutoRefreshEnabled) {
+    autoRefreshInterval = setInterval(refreshAll, 2500);
+  } else {
+    clearInterval(autoRefreshInterval);
+  }
+});
 modalClose.addEventListener("click", closeModal);
 modalCancel.addEventListener("click", closeModal);
 issueForm.addEventListener("submit", submitIssue);
@@ -235,5 +347,20 @@ backdrop.addEventListener("click", (e) => {
   if (e.target === backdrop) closeModal();
 });
 
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    closeModal();
+  } else if (e.key === "/" && e.target.tagName !== "INPUT") {
+    e.preventDefault();
+    threadSearchEl.focus();
+  } else if (e.ctrlKey && e.key === "r") {
+    e.preventDefault();
+    refreshAll();
+  } else if (e.ctrlKey && e.key === "n") {
+    e.preventDefault();
+    openModal();
+  }
+});
+
 refreshAll();
-setInterval(refreshAll, 2500);
+autoRefreshInterval = setInterval(refreshAll, 2500);

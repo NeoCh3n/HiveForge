@@ -7,25 +7,33 @@
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
-    <header>
-      <div class="logo">HiveForge</div>
-      <div class="subtitle">Multi-agent flow · Mail · Memory</div>
-    </header>
+     <header>
+       <div class="logo">HiveForge</div>
+       <div class="subtitle">Multi-agent flow · Mail · Memory</div>
+       <div id="health-status" class="health-indicator">
+         <span class="status-dot"></span>
+         <span class="status-text">Checking...</span>
+       </div>
+     </header>
     <main>
       <section class="panels">
-        <div class="panel thread-list">
-          <div class="panel-head">
-            <div>
-              <div class="label">Threads</div>
-              <div class="title">State machine</div>
-            </div>
-            <div class="actions">
-              <button id="new-issue">New issue</button>
-              <button id="refresh">Refresh</button>
-            </div>
-          </div>
-          <div id="threads"></div>
-        </div>
+         <div class="panel thread-list">
+           <div class="panel-head">
+             <div>
+               <div class="label">Threads</div>
+               <div class="title">State machine</div>
+             </div>
+             <div class="actions">
+               <button id="new-issue">New issue</button>
+               <button id="refresh">Refresh</button>
+               <button id="auto-refresh" class="ghost small" data-active="true">Auto ✓</button>
+             </div>
+           </div>
+           <div class="search-box">
+             <input type="text" id="thread-search" placeholder="Search threads..." />
+           </div>
+           <div id="threads"></div>
+         </div>
         <div class="panel details">
           <div class="panel-head">
             <div>
@@ -34,10 +42,14 @@
             </div>
           </div>
           <div class="grid">
-            <div class="card">
-              <div class="card-head">Workflow</div>
-              <pre id="state-view" class="mono"></pre>
-            </div>
+             <div class="card">
+               <div class="card-head">
+                 Workflow
+                 <button id="toggle-json" class="ghost small">Show JSON</button>
+               </div>
+               <div id="workflow-visual"></div>
+               <pre id="state-view" class="mono" style="display: none;"></pre>
+             </div>
             <div class="card">
               <div class="card-head">Beads (memory)</div>
               <div id="beads"></div>
