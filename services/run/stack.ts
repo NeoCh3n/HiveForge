@@ -21,7 +21,7 @@ function startAll() {
   run("implementer", ["agents/implementer/agent.ts"]);
   run("reviewer", ["agents/reviewer/agent.ts"]);
   run("integrator", ["agents/integrator/agent.ts"]);
-  run("gateway", ["services/gateway/server.ts"]);
+  run("gateway", ["services/gateway/server-simple.ts"]);
 }
 
 function shutdown() {
