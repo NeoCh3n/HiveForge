@@ -46,6 +46,8 @@ export type WorkflowStateValue =
   | "RESULT_RECEIVED"
   | "REVIEW_REQUESTED"
   | "REVIEW_RECEIVED"
+  | "APPROVAL_REQUESTED"
+  | "APPROVAL_RECEIVED"
   | "MERGE_REQUESTED"
   | "DONE"
   | "ITERATING"

@@ -4,8 +4,13 @@ import { readFile, readdir, stat, mkdir } from "node:fs/promises";
 import { join, resolve, extname } from "node:path";
 import { URL } from "node:url";
 import { randomUUID } from "node:crypto";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { listInbox, send as mailSend } from "../mail/adapter.ts";
 import { DATA_ROOT, EVENT_LOG, MAIL_BACKEND, MAIL_ROOT, MCP_BASE_URL, MEMORY_ROOT, STATE_DIR } from "../config.ts";
+
+const execFileAsync = promisify(execFile);
+const VC_PATH = join(process.cwd(), 'vendor/vc/vc');
 
 const PORT = parseInt(process.env.PORT ?? "8787", 10);
 const PORT_ENV = process.env.PORT;
@@ -169,13 +174,22 @@ async function start() {
 
     // Health check
     if (path === "/health") {
+      let vcStatus = "not available";
+      try {
+        await execFileAsync(VC_PATH, ['doctor'], { timeout: 5000 });
+        vcStatus = "healthy";
+      } catch {
+        vcStatus = "unavailable";
+      }
+
       const health = {
         status: "ok",
         timestamp: new Date().toISOString(),
         services: {
           mail: MAIL_BACKEND,
           memory: "beads",
-          orchestrator: "active"
+          orchestrator: "active",
+          vc: vcStatus
         }
       };
       json(res, 200, health);

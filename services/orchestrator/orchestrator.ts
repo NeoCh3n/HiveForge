@@ -167,18 +167,30 @@ async function handleReview(message: Message, current: WorkflowState): Promise<v
     return;
   }
 
+  // VC-style approval gate
+  await logEvent(`[${message.thread_id}] requesting approval via VC integration`);
+  // For now, auto-approve; in full VC integration, would create approval issue
+  const approval = { approved: true, notes: "Auto-approved via VC gate" };
+  state = await transition(state, "APPROVAL_REQUESTED");
+  state = await transition(state, "APPROVAL_RECEIVED", { approval });
+
   const mergeReq: Message = {
     thread_id: message.thread_id,
     msg_id: randomUUID(),
     from: ORCHESTRATOR_ID,
     to: "integrator",
     type: "MERGE_REQUEST",
-    payload: { issue: state.issue, plan: state.plan, result: state.result, review },
+    payload: {
+      issue: state.issue,
+      plan: state.plan,
+      result: state.result,
+      review,
+      approval
+    },
     created_at: new Date().toISOString()
   };
-
   await send(mergeReq);
-  await logEvent(`[${message.thread_id}] sent MERGE_REQUEST to integrator`);
+  await logEvent(`[${message.thread_id}] approval received -> sent MERGE_REQUEST to integrator`);
   await transition(state, "MERGE_REQUESTED");
 }
 
