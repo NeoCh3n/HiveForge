@@ -9,7 +9,7 @@
     "agent:implementer": "NODE_OPTIONS=--experimental-strip-types node agents/implementer/agent.ts",
     "agent:reviewer": "NODE_OPTIONS=--experimental-strip-types node agents/reviewer/agent.ts",
     "agent:integrator": "NODE_OPTIONS=--experimental-strip-types node agents/integrator/agent.ts",
-    "stack": "HIVEFORGE_MAIL_BACKEND=mcp HIVEFORGE_MCP_BASE_URL=http://127.0.0.1:8765/mcp/ HIVEFORGE_MCP_AGENT_SCOPE=${HIVEFORGE_MCP_AGENT_SCOPE:-role} HIVEFORGE_MCP_PROJECT_KEY=${HIVEFORGE_MCP_PROJECT_KEY:-HiveForge-dev} NODE_OPTIONS=--experimental-strip-types node services/run/stack.ts",
+    "stack": "HIVEFORGE_MAIL_BACKEND=${HIVEFORGE_MAIL_BACKEND:-mcp} HIVEFORGE_MCP_BASE_URL=${HIVEFORGE_MCP_BASE_URL:-http://127.0.0.1:8765/mcp/} HIVEFORGE_MCP_AGENT_SCOPE=${HIVEFORGE_MCP_AGENT_SCOPE:-role} HIVEFORGE_MCP_PROJECT_KEY=${HIVEFORGE_MCP_PROJECT_KEY:-HiveForge-dev} NODE_OPTIONS=--experimental-strip-types node services/run/stack.ts",
     "stack:codex": "HIVEFORGE_MAIL_BACKEND=mcp HIVEFORGE_MCP_BASE_URL=http://127.0.0.1:8765/mcp/ HIVEFORGE_MCP_AGENT_SCOPE=${HIVEFORGE_MCP_AGENT_SCOPE:-role} HIVEFORGE_MCP_PROJECT_KEY=${HIVEFORGE_MCP_PROJECT_KEY:-HiveForge-dev} NODE_OPTIONS=--experimental-strip-types node services/run/codex-stack.ts",
     "stack:codex-agents": "HIVEFORGE_MAIL_BACKEND=mcp HIVEFORGE_MCP_BASE_URL=http://127.0.0.1:8765/mcp/ HIVEFORGE_MCP_AGENT_SCOPE=${HIVEFORGE_MCP_AGENT_SCOPE:-role} HIVEFORGE_MCP_PROJECT_KEY=${HIVEFORGE_MCP_PROJECT_KEY:-HiveForge-dev} NODE_OPTIONS=--experimental-strip-types node services/run/codex-agents-stack.ts",
     "ui": "NODE_OPTIONS=--experimental-strip-types node services/gateway/server.ts",
