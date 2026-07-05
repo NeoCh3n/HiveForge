@@ -1,7 +1,17 @@
 {
   "name": "hiveforge",
+  "description": "Agent Harness Observatory: TypeScript evaluation framework for comparing agent workflow architectures.",
   "private": true,
   "type": "module",
+  "keywords": [
+    "agent-harness",
+    "multi-agent",
+    "agent-workflows",
+    "tool-calling",
+    "persistent-state",
+    "trace-evaluation",
+    "codex"
+  ],
   "scripts": {
     "demo": "NODE_OPTIONS=--experimental-strip-types node services/orchestrator/cli.ts demo run --issue examples/issue.json",
     "orchestrator": "NODE_OPTIONS=--experimental-strip-types node services/orchestrator/cli.ts orchestrator run",
